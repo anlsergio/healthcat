@@ -18,7 +18,7 @@ func TestGetStatus(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(fmt.Sprintf("HealthEnpoint:%v", c.healthy), func(t *testing.T) {
-			request, _ := http.NewRequest(http.MethodGet, "/status", nil)
+			request := httptest.NewRequest(http.MethodGet, "/status", nil)
 			response := httptest.NewRecorder()
 
 			server := &HealthCheckServer{MockHealthChecker(c.healthy)}
