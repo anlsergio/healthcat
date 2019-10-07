@@ -34,6 +34,28 @@ func TestGetStatus(t *testing.T) {
 	}
 }
 
+func TestHealthz(t *testing.T) {
+	request := httptest.NewRequest("", "/healthz", nil)
+	response := httptest.NewRecorder()
+
+	server := &HealthCheckServer{nil}
+	server.ServeHTTP(response, request)
+
+	statusGot := response.Result().StatusCode
+	statusWant := http.StatusOK
+
+	if statusGot != statusWant {
+		t.Errorf("got status %d, want %d", statusGot, statusWant)
+	}
+
+	responseGot := response.Body.String()
+	responseWant := "OK"
+
+	if responseGot != responseWant {
+		t.Errorf("Got response string %q, want %q", responseGot, responseWant)
+	}
+}
+
 type MockHealthChecker bool
 
 func (m MockHealthChecker) Healthy() bool {
