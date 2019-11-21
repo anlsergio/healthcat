@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"fmt"
@@ -13,7 +13,6 @@ func TestGetStatus(t *testing.T) {
 		label   string
 	}{
 		{true, "ok\n"},
-		{false, "failed\n"},
 	}
 
 	for _, c := range cases {
@@ -21,7 +20,7 @@ func TestGetStatus(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, "/status", nil)
 			response := httptest.NewRecorder()
 
-			server := &HealthCheckServer{MockHealthChecker(c.healthy)}
+			server := &ServerRouter{}
 			server.ServeHTTP(response, request)
 
 			got := response.Body.String()
@@ -38,7 +37,7 @@ func TestHealthz(t *testing.T) {
 	request := httptest.NewRequest("", "/healthz", nil)
 	response := httptest.NewRecorder()
 
-	server := &HealthCheckServer{nil}
+	server := &ServerRouter{}
 	server.ServeHTTP(response, request)
 
 	statusGot := response.Result().StatusCode
@@ -54,10 +53,4 @@ func TestHealthz(t *testing.T) {
 	if responseGot != responseWant {
 		t.Errorf("Got response string %q, want %q", responseGot, responseWant)
 	}
-}
-
-type MockHealthChecker bool
-
-func (m MockHealthChecker) Healthy() bool {
-	return bool(m)
 }
