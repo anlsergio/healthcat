@@ -5,14 +5,28 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"wiley.com/do-k8s-cluster-health-check/checker"
 )
+
+type testReporter bool
+
+func (r testReporter) State() checker.ClusterState {
+	return checker.ClusterState{
+		Healthy: bool(r),
+	}
+}
+
+func (r testReporter) Add(url string)    {}
+func (r testReporter) Delete(url string) {}
 
 func TestGetStatus(t *testing.T) {
 	cases := []struct {
 		healthy bool
 		label   string
 	}{
-		{true, "ok\n"},
+		{true, "OK\n"},
+		{false, "Failure\n"},
 	}
 
 	for _, c := range cases {
@@ -20,7 +34,9 @@ func TestGetStatus(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, "/status", nil)
 			response := httptest.NewRecorder()
 
-			server := &ServerRouter{}
+			reporter := testReporter(c.healthy)
+
+			server := &router{reporter: reporter}
 			server.ServeHTTP(response, request)
 
 			got := response.Body.String()
@@ -37,7 +53,7 @@ func TestHealthz(t *testing.T) {
 	request := httptest.NewRequest("", "/healthz", nil)
 	response := httptest.NewRecorder()
 
-	server := &ServerRouter{}
+	server := &router{}
 	server.ServeHTTP(response, request)
 
 	statusGot := response.Result().StatusCode
@@ -48,7 +64,7 @@ func TestHealthz(t *testing.T) {
 	}
 
 	responseGot := response.Body.String()
-	responseWant := "OK"
+	responseWant := "OK\n"
 
 	if responseGot != responseWant {
 		t.Errorf("Got response string %q, want %q", responseGot, responseWant)

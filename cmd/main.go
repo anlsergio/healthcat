@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"wiley.com/do-k8s-cluster-health-check/checker"
 	"wiley.com/do-k8s-cluster-health-check/server"
 )
 
@@ -75,8 +76,11 @@ func runServer(config *Config) {
 		host = config.listenAddress
 	}
 
+	checker := checker.New(config.interval, config.nfailure, config.nsuccess, config.threshold)
+
 	server := &server.Server{
 		Address: fmt.Sprintf("%s:%d", host, config.port),
+		Checker: checker,
 	}
 	server.Run()
 }
