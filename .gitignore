@@ -12,4 +12,5 @@
 *.out
 
 # The binary itself
-do-k8s-cluster-health-check
+chc
+

@@ -28,8 +28,11 @@ type Checker struct {
 	added            chan string
 	deleted          chan string
 	reports          chan *report
-	stateRequests    chan chan *ClusterState
+	accessors        chan accessor
+	ready            bool
 }
+
+type accessor func(c *Checker)
 
 type target struct {
 	url        string
@@ -46,19 +49,20 @@ type target struct {
 // New creates a new running checker a returns a pointer to it.
 func New(interval time.Duration, nfail int, nsuccess int, threshold int) *Checker {
 	checker := &Checker{
-		done:          make(chan struct{}),
-		targets:       make(map[string]*target),
-		reports:       make(chan *report),
-		interval:      interval,
-		added:         make(chan string),
-		deleted:       make(chan string),
-		stateRequests: make(chan chan *ClusterState),
+		done:      make(chan struct{}),
+		targets:   make(map[string]*target),
+		reports:   make(chan *report),
+		interval:  interval,
+		added:     make(chan string),
+		deleted:   make(chan string),
+		accessors: make(chan accessor),
 		client: &http.Client{
 			Timeout: calcTimeout(interval),
 		},
 		successThreshold: nsuccess,
 		failureThreshold: nfail,
 		stateThreshold:   threshold,
+		ready:            true,
 	}
 	go checker.run()
 	return checker
@@ -75,11 +79,28 @@ func (c *Checker) Stop() {
 
 // State reports about the current cluster state
 func (c *Checker) State() ClusterState {
-	result := make(chan *ClusterState)
-	go func() {
-		c.stateRequests <- result
-	}()
+	result := make(chan *ClusterState, 1)
+	c.accessors <- func(c *Checker) {
+		healthy := true
+		if c.activeCount > 0 {
+			healthy = c.healthyCount*100/c.activeCount >= c.stateThreshold
+		}
+		result <- &ClusterState{
+			ActiveCount:  c.activeCount,
+			HealthyCount: c.healthyCount,
+			Healthy:      healthy,
+		}
+	}
 	return *<-result
+}
+
+// Ready gets the current readiness status
+func (c *Checker) Ready() bool {
+	result := make(chan bool, 1)
+	c.accessors <- func(c *Checker) {
+		result <- c.ready
+	}
+	return <-result
 }
 
 // Add adds the given target to the check list
@@ -166,15 +187,7 @@ func (c *Checker) update(r *report) {
 }
 
 func (c *Checker) reportState(results chan<- *ClusterState) {
-	healthy := true
-	if c.activeCount > 0 {
-		healthy = c.healthyCount*100/c.activeCount >= c.stateThreshold
-	}
-	results <- &ClusterState{
-		ActiveCount:  c.activeCount,
-		HealthyCount: c.healthyCount,
-		Healthy:      healthy,
-	}
+
 }
 
 func (c *Checker) run() {
@@ -187,8 +200,8 @@ Loop:
 			c.deleteTarget(url)
 		case r := <-c.reports:
 			c.update(r)
-		case req := <-c.stateRequests:
-			c.reportState(req)
+		case a := <-c.accessors:
+			a(c)
 		case <-c.done:
 			log.Println("Stopping all target loops")
 			for _, c := range c.targets {

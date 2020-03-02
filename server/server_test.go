@@ -9,12 +9,19 @@ import (
 	"wiley.com/do-k8s-cluster-health-check/checker"
 )
 
-type testReporter bool
+type testReporter struct {
+	healthy bool
+	ready   bool
+}
 
 func (r testReporter) State() checker.ClusterState {
 	return checker.ClusterState{
-		Healthy: bool(r),
+		Healthy: r.healthy,
 	}
+}
+
+func (r testReporter) Ready() bool {
+	return r.ready
 }
 
 func (r testReporter) Add(url string)    {}
@@ -34,9 +41,9 @@ func TestGetStatus(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, "/status", nil)
 			response := httptest.NewRecorder()
 
-			reporter := testReporter(c.healthy)
+			reporter := testReporter{healthy: c.healthy}
 
-			server := &router{reporter: reporter}
+			server := router(reporter)
 			server.ServeHTTP(response, request)
 
 			got := response.Body.String()
@@ -53,7 +60,7 @@ func TestHealthz(t *testing.T) {
 	request := httptest.NewRequest("", "/healthz", nil)
 	response := httptest.NewRecorder()
 
-	server := &router{}
+	server := router(testReporter{})
 	server.ServeHTTP(response, request)
 
 	statusGot := response.Result().StatusCode
@@ -68,5 +75,35 @@ func TestHealthz(t *testing.T) {
 
 	if responseGot != responseWant {
 		t.Errorf("Got response string %q, want %q", responseGot, responseWant)
+	}
+}
+
+func TestReadiness(t *testing.T) {
+	cases := []struct {
+		name    string
+		ready   bool
+		status  int
+		message string
+	}{
+		{"Ready", true, 200, "OK\n"},
+		{"NotReady", false, 552, "Not ready\n"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/healthz/ready", nil)
+			resp := httptest.NewRecorder()
+
+			server := router(testReporter{ready: c.ready})
+			server.ServeHTTP(resp, req)
+
+			if want, got := c.status, resp.Result().StatusCode; want != got {
+				t.Errorf("Want status %d, got %d", want, got)
+			}
+
+			if want, got := c.message, resp.Body.String(); want != got {
+				t.Errorf("Want message %q, got %q", want, got)
+			}
+		})
 	}
 }

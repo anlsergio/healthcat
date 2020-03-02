@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -10,6 +9,9 @@ import (
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	"wiley.com/do-k8s-cluster-health-check/checker"
 )
 
@@ -22,6 +24,7 @@ type StateReporter interface {
 	Add(url string)
 	Delete(url string)
 	State() checker.ClusterState
+	Ready() bool
 }
 
 func (s *Server) Run() {
@@ -29,10 +32,8 @@ func (s *Server) Run() {
 	signal.Notify(interrupted, os.Interrupt)
 
 	httpServer := http.Server{
-		Addr: s.Address,
-		Handler: &router{
-			reporter: s.Checker,
-		},
+		Addr:         s.Address,
+		Handler:      router(s.Checker),
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 5 * time.Second,
 		IdleTimeout:  30 * time.Second,
@@ -52,15 +53,13 @@ func (s *Server) Run() {
 	}
 }
 
-type router struct {
-	reporter StateReporter
-}
+func router(sr StateReporter) http.Handler {
+	r := chi.NewRouter()
 
-func (s router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	mux := http.NewServeMux()
+	r.Use(middleware.Logger)
 
-	mux.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
-		state := s.reporter.State()
+	r.Get("/status", func(w http.ResponseWriter, r *http.Request) {
+		state := sr.State()
 		if state.Healthy {
 			w.WriteHeader(http.StatusOK)
 			io.WriteString(w, "OK\n")
@@ -70,29 +69,37 @@ func (s router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	})
 
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "OK\n")
+	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "OK\n")
 	})
 
-	mux.HandleFunc("/targets", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
-			body, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				log.Printf("Error reading request body: %v", err)
-				return
-			}
-			target := string(body)
-			s.reporter.Add(target)
-		} else if r.Method == http.MethodDelete {
-			body, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				log.Printf("Error reading request body: %v", err)
-				return
-			}
-			service := string(body)
-			s.reporter.Delete(service)
+	r.Get("/healthz/ready", func(w http.ResponseWriter, r *http.Request) {
+		if sr.Ready() {
+			io.WriteString(w, "OK\n")
+		} else {
+			w.WriteHeader(552)
+			io.WriteString(w, "Not ready\n")
 		}
 	})
 
-	mux.ServeHTTP(w, r)
+	r.Post("/targets", func(w http.ResponseWriter, r *http.Request) {
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("Error reading request body: %v", err)
+			return
+		}
+		target := string(body)
+		sr.Add(target)
+	})
+
+	r.Delete("/targets", func(w http.ResponseWriter, r *http.Request) {
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("Error reading request body: %v", err)
+			return
+		}
+		service := string(body)
+		sr.Delete(service)
+	})
+	return r
 }
