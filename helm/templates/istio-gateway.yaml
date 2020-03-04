@@ -1,0 +1,54 @@
+{{- if .Values.istio.gateway.enabled -}}
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: {{ include "helm.fullname" . }}
+  labels:
+    {{- include "helm.labels" . | nindent 4 }}
+spec:
+  selector:
+    istio: ingressgateway # use istio default controller
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+      {{- range .Values.istio.gateway.ingress.hosts }}
+        - {{ .host | quote }}
+      {{- end }}
+      tls:
+        httpsRedirect: true
+    - port:
+        number: 443
+        name: https-443
+        protocol: HTTPS
+      hosts:
+      {{- range .Values.istio.gateway.ingress.hosts }}
+        - {{ .host | quote }}
+      {{- end }}
+      tls:
+        mode: SIMPLE # enables HTTPS on this por
+        credentialName: {{ .Values.istio.gateway.ingress.tls.credentialName }}
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: {{ include "helm.fullname" . }}
+  labels:
+    {{- include "helm.labels" . | nindent 4 }}
+spec:
+  hosts:
+    {{- range .Values.istio.gateway.mesh.hosts }}
+    - {{ .host | quote }}
+    {{- end }}
+  gateways:
+    - {{ include "helm.fullname" . }}
+    - mesh
+  http:
+  - route:
+    - destination:
+        host: {{ include "helm.fullname" . }}
+        port:
+          number: {{ .Values.service.port }}
+{{- end }}
