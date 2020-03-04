@@ -76,7 +76,7 @@ func runServer(config *Config) {
 		host = config.listenAddress
 	}
 
-	checker := checker.New(config.interval, config.nfailure, config.nsuccess, config.threshold)
+	checker := checker.New(config.clusterID, config.interval, config.nfailure, config.nsuccess, config.threshold)
 
 	server := &server.Server{
 		Address: fmt.Sprintf("%s:%d", host, config.port),

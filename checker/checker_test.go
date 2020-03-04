@@ -9,15 +9,15 @@ import (
 )
 
 func TestEmptyIsHealthy(t *testing.T) {
-	checker := New(1*time.Second, 1, 1, 100)
+	checker := New("test", 1*time.Second, 1, 1, 100)
 
-	if !checker.State().Healthy {
+	if !checker.Healthy() {
 		t.Error("empty checker must report healthy status")
 	}
 }
 
 func TestHealthyEndpoint(t *testing.T) {
-	checker := New(1*time.Second, 1, 1, 100)
+	checker := New("test", 1*time.Second, 1, 1, 100)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "OK\n")
@@ -28,13 +28,13 @@ func TestHealthyEndpoint(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	if !checker.State().Healthy {
+	if !checker.Healthy() {
 		t.Error("checker must be healthy")
 	}
 }
 
 func TestUnhealthyEndpoint(t *testing.T) {
-	checker := New(1*time.Second, 1, 1, 100)
+	checker := New("test", 1*time.Second, 1, 1, 100)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -45,7 +45,7 @@ func TestUnhealthyEndpoint(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	if checker.State().Healthy {
+	if checker.Healthy() {
 		t.Error("checker must be unhealthy")
 	}
 }

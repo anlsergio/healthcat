@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"log"
@@ -24,6 +25,7 @@ type StateReporter interface {
 	Add(url string)
 	Delete(url string)
 	State() checker.ClusterState
+	Healthy() bool
 	Ready() bool
 }
 
@@ -59,8 +61,7 @@ func router(sr StateReporter) http.Handler {
 	r.Use(middleware.Logger)
 
 	r.Get("/status", func(w http.ResponseWriter, r *http.Request) {
-		state := sr.State()
-		if state.Healthy {
+		if sr.Healthy() {
 			w.WriteHeader(http.StatusOK)
 			io.WriteString(w, "OK\n")
 		} else {
@@ -79,6 +80,15 @@ func router(sr StateReporter) http.Handler {
 		} else {
 			w.WriteHeader(552)
 			io.WriteString(w, "Not ready\n")
+		}
+	})
+
+	r.Get("/healthz/services", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		encoder := json.NewEncoder(w)
+		err := encoder.Encode(sr.State())
+		if err != nil {
+			http.Error(w, "Error writing response", http.StatusInternalServerError)
 		}
 	})
 

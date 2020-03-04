@@ -7,15 +7,27 @@ import (
 	"time"
 )
 
+type Cluster struct {
+	Name    string `json:"name"`    // The cluster name (ID)
+	Healthy bool   `json:"healthy"` // Health status
+	Total   int    `json:"total"`   // Total monitored services
+	Failed  int    `json:"failed"`  // Failed services
+}
+
+type Service struct {
+	Name    string `json:"name"`    // The cluster name (ID)
+	Healthy bool   `json:"healthy"` // Cluster healthy state
+}
+
 // ClusterState describes the current cluster state
 type ClusterState struct {
-	ActiveCount  int  // Number of active services
-	HealthyCount int  // Number of healthy services
-	Healthy      bool // Cluster healthy state
+	Cluster  Cluster   `json:"cluster"`
+	Services []Service `json:"services"`
 }
 
 // Checker periodically checks availability of targets in the list
 type Checker struct {
+	id               string
 	interval         time.Duration
 	failureThreshold int
 	successThreshold int
@@ -25,6 +37,7 @@ type Checker struct {
 	targets          map[string]*target
 	activeCount      int
 	healthyCount     int
+	healthy          bool
 	added            chan string
 	deleted          chan string
 	reports          chan *report
@@ -47,8 +60,9 @@ type target struct {
 }
 
 // New creates a new running checker a returns a pointer to it.
-func New(interval time.Duration, nfail int, nsuccess int, threshold int) *Checker {
+func New(id string, interval time.Duration, nfail int, nsuccess int, threshold int) *Checker {
 	checker := &Checker{
+		id:        id,
 		done:      make(chan struct{}),
 		targets:   make(map[string]*target),
 		reports:   make(chan *report),
@@ -63,6 +77,7 @@ func New(interval time.Duration, nfail int, nsuccess int, threshold int) *Checke
 		failureThreshold: nfail,
 		stateThreshold:   threshold,
 		ready:            true,
+		healthy:          true,
 	}
 	go checker.run()
 	return checker
@@ -81,17 +96,35 @@ func (c *Checker) Stop() {
 func (c *Checker) State() ClusterState {
 	result := make(chan *ClusterState, 1)
 	c.accessors <- func(c *Checker) {
-		healthy := true
-		if c.activeCount > 0 {
-			healthy = c.healthyCount*100/c.activeCount >= c.stateThreshold
+		cs := &ClusterState{
+			Cluster: Cluster{
+				Name:    c.id,
+				Healthy: c.healthy,
+				Total:   c.activeCount,
+				Failed:  c.activeCount - c.healthyCount,
+			},
+			Services: make([]Service, 0, c.activeCount),
 		}
-		result <- &ClusterState{
-			ActiveCount:  c.activeCount,
-			HealthyCount: c.healthyCount,
-			Healthy:      healthy,
+		for k, v := range c.targets {
+			if v.state != 0 {
+				cs.Services = append(cs.Services, Service{
+					Name:    k,
+					Healthy: v.healthy,
+				})
+			}
 		}
+		result <- cs
 	}
 	return *<-result
+}
+
+// Healthy returns current cluster health state
+func (c *Checker) Healthy() bool {
+	result := make(chan bool, 1)
+	c.accessors <- func(c *Checker) {
+		result <- c.healthy
+	}
+	return <-result
 }
 
 // Ready gets the current readiness status
@@ -183,11 +216,12 @@ func (c *Checker) update(r *report) {
 			c.healthyCount--
 		}
 	}
+
+	c.healthy = true
+	if c.activeCount > 0 {
+		c.healthy = c.healthyCount*100/c.activeCount >= c.stateThreshold
+	}
 	log.Printf("Report from %s: s:%d, h:%t, err:%v\n", t.url, t.state, t.healthy, r.err)
-}
-
-func (c *Checker) reportState(results chan<- *ClusterState) {
-
 }
 
 func (c *Checker) run() {
