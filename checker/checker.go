@@ -183,6 +183,7 @@ func (c *Checker) deleteTarget(url string) {
 		if t.healthy {
 			c.healthyCount--
 		}
+		c.updateHealthStatus()
 	}
 }
 
@@ -217,11 +218,12 @@ func (c *Checker) update(r *report) {
 		}
 	}
 
-	c.healthy = true
-	if c.activeCount > 0 {
-		c.healthy = c.healthyCount*100/c.activeCount >= c.stateThreshold
-	}
+	c.updateHealthStatus()
 	log.Printf("Report from %s: s:%d, h:%t, err:%v\n", t.url, t.state, t.healthy, r.err)
+}
+
+func (c *Checker) updateHealthStatus() {
+	c.healthy = calcHealthStatus(c.activeCount, c.healthyCount, c.stateThreshold)
 }
 
 func (c *Checker) run() {
@@ -280,4 +282,12 @@ type report struct {
 	url string
 	ts  time.Time
 	err error
+}
+
+func calcHealthStatus(total, healthy, threshold int) bool {
+	status := true
+	if total > 0 {
+		status = healthy*100/total >= threshold
+	}
+	return status
 }
