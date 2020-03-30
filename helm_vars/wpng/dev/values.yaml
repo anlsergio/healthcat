@@ -3,7 +3,7 @@
 # Declare variables to be passed into your templates.
 
 # Cluster Id required
-clusterId:
+clusterId: wpng-dev
 
 replicaCount: 1
 
