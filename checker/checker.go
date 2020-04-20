@@ -1,9 +1,12 @@
 package checker
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
+	"sync"
 	"time"
 )
 
@@ -16,20 +19,25 @@ type ClusterState struct {
 
 // Checker periodically checks availability of targets in the list
 type Checker struct {
-	interval         time.Duration
-	failureThreshold int
-	successThreshold int
-	stateThreshold   int
-	done             chan struct{}
-	client           *http.Client
-	targets          map[string]*target
-	activeCount      int
-	healthyCount     int
-	added            chan string
-	deleted          chan string
-	reports          chan *report
-	accessors        chan accessor
-	ready            bool
+	ClusterID        string
+	Interval         time.Duration
+	FailureThreshold int
+	SuccessThreshold int
+	StateThreshold   int
+
+	done chan struct{}
+	mux  sync.Mutex
+
+	client       *http.Client
+	targets      map[string]*target
+	activeCount  int
+	healthyCount int
+	added        chan string
+	deleted      chan string
+	reports      chan *report
+	accessors    chan accessor
+	ready        bool
+	updates      chan struct{}
 }
 
 type accessor func(c *Checker)
@@ -46,35 +54,52 @@ type target struct {
 	state int64
 }
 
-// New creates a new running checker a returns a pointer to it.
-func New(interval time.Duration, nfail int, nsuccess int, threshold int) *Checker {
-	checker := &Checker{
-		done:      make(chan struct{}),
-		targets:   make(map[string]*target),
-		reports:   make(chan *report),
-		interval:  interval,
-		added:     make(chan string),
-		deleted:   make(chan string),
-		accessors: make(chan accessor),
-		client: &http.Client{
-			Timeout: calcTimeout(interval),
-		},
-		successThreshold: nsuccess,
-		failureThreshold: nfail,
-		stateThreshold:   threshold,
-		ready:            true,
+// Starts the checker
+func (c *Checker) Run() error {
+	if err := c.validate(); err != nil {
+		return err
 	}
-	go checker.run()
-	return checker
+
+	c.mux.Lock()
+	c.done = make(chan struct{})
+	c.mux.Unlock()
+
+	c.targets = make(map[string]*target)
+	c.reports = make(chan *report)
+	c.added = make(chan string)
+	c.deleted = make(chan string)
+	c.accessors = make(chan accessor)
+	c.client = &http.Client{
+		Timeout: calcTimeout(c.Interval),
+	}
+	c.ready = true
+
+	go c.run()
+	return nil
+}
+
+func (c *Checker) validate() error {
+	if ok, err := regexp.MatchString("^[[:alnum:]]{3,30}$", c.ClusterID); !ok {
+		if err != nil {
+			panic(err)
+		}
+		return errors.New("Cluster ID must be alphanumeric string of length between 3 an 30 inclusive")
+	}
+	return nil
 }
 
 func calcTimeout(interval time.Duration) time.Duration {
 	return time.Duration(float64(interval) * 0.8)
 }
 
-// Stop stops the running checker.
+// Stop stops the checker
 func (c *Checker) Stop() {
-	close(c.done)
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	if c.done != nil {
+		close(c.done)
+	}
 }
 
 // State reports about the current cluster state
@@ -83,7 +108,7 @@ func (c *Checker) State() ClusterState {
 	c.accessors <- func(c *Checker) {
 		healthy := true
 		if c.activeCount > 0 {
-			healthy = c.healthyCount*100/c.activeCount >= c.stateThreshold
+			healthy = c.healthyCount*100/c.activeCount >= c.StateThreshold
 		}
 		result <- &ClusterState{
 			ActiveCount:  c.activeCount,
@@ -169,7 +194,7 @@ func (c *Checker) update(r *report) {
 			t.state = 0
 		}
 		t.state++
-		if t.state >= int64(c.successThreshold) && !t.healthy {
+		if t.state >= int64(c.SuccessThreshold) && !t.healthy {
 			t.healthy = true
 			c.healthyCount++
 		}
@@ -178,12 +203,19 @@ func (c *Checker) update(r *report) {
 			t.state = 0
 		}
 		t.state--
-		if t.state <= int64(-c.failureThreshold) && t.healthy {
+		if t.state <= int64(-c.FailureThreshold) && t.healthy {
 			t.healthy = false
 			c.healthyCount--
 		}
 	}
+
 	log.Printf("Report from %s: s:%d, h:%t, err:%v\n", t.url, t.state, t.healthy, r.err)
+	if c.updates != nil {
+		select {
+		case c.updates <- struct{}{}:
+		default:
+		}
+	}
 }
 
 func (c *Checker) reportState(results chan<- *ClusterState) {
@@ -213,7 +245,7 @@ Loop:
 }
 
 func (c *Checker) newTargetLoop(url string, done <-chan struct{}) {
-	ticker := time.NewTicker(c.interval)
+	ticker := time.NewTicker(c.Interval)
 	defer ticker.Stop()
 
 	checkURL := fmt.Sprintf("%s%s", url, "/healthz")
