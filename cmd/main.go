@@ -20,9 +20,8 @@ const (
 	defaultPort      = 8080
 )
 
-// Config contains configuration properties
-type Config struct {
-	listenAddress      string
+type mainCmdArgs struct {
+	host               string
 	clusterID          string
 	namespaces         []string
 	excludedNamespaces []string
@@ -33,7 +32,7 @@ type Config struct {
 	port               int
 }
 
-func newMainCommand(config *Config) *cobra.Command {
+func newMainCmd(args *mainCmdArgs) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "chc",
 		Long: `CHC - Cluster Health Check
@@ -54,56 +53,63 @@ it passes predefined number of successful health-checks
 will not be monitored by CHC.  Cluster ID (--cluster-id) is a unique
 cluster identifier that will be included in all CHC reports.`,
 		Args: cobra.NoArgs,
-		Run: func(*cobra.Command, []string) {
-			runServer(config)
+		RunE: func(*cobra.Command, []string) error {
+			return runServer(args)
 		},
 	}
 
-	addFlags(cmd, config)
+	flags := cmd.Flags()
+	flags.StringVarP(&args.clusterID, "cluster-id", "i", "", "cluster ID")
+	flags.StringVarP(&args.host, "listen-address", "l", defaultAddress, "bind address")
+	flags.IntVarP(&args.port, "port", "p", defaultPort, "bind port")
+	flags.StringSliceVarP(&args.namespaces, "namespaces", "n", []string{}, "list of namespaces to watch")
+	flags.StringSliceVarP(&args.excludedNamespaces, "excluded-namespaces", "N", strings.Split(defaultExcludes, ","),
+		"list of namespaces to exclude")
+	flags.DurationVarP(&args.interval, "time-between-hc", "t", duration(defaultInterval), "time between two consecutive health checks")
+	flags.IntVarP(&args.nsuccess, "successful-hc-cnt", "s", defaultNSuccess, "number of successful consecutive health checks counts")
+	flags.IntVarP(&args.nfailure, "failed-hc-cnt", "f", defaultNFailure, "number of failed consecutive health checks counts")
+	flags.IntVarP(&args.threshold, "status-threshold", "P", defaultThreshold, "percentage of successful health checks to set cluster status OK")
+
+	cmd.MarkFlagRequired("cluster-id")
 
 	return cmd
 }
 
 // Execute executes the root command
 func Execute() error {
-	cmd := newMainCommand(&Config{})
+	cmd := newMainCmd(&mainCmdArgs{})
 	return cmd.Execute()
 }
 
-func runServer(config *Config) {
+func runServer(cmdArgs *mainCmdArgs) error {
 	var host string
-	if config.listenAddress != "*" {
-		host = config.listenAddress
+	if cmdArgs.host != "*" {
+		host = cmdArgs.host
 	}
 
-	checker := checker.New(config.clusterID, config.interval, config.nfailure, config.nsuccess, config.threshold)
+	checker := &checker.Checker{
+		ClusterID:        cmdArgs.clusterID,
+		Interval:         cmdArgs.interval,
+		FailureThreshold: cmdArgs.nfailure,
+		SuccessThreshold: cmdArgs.nsuccess,
+		StateThreshold:   cmdArgs.threshold,
+	}
+	if err := checker.Run(); err != nil {
+		return err
+	}
 
 	server := &server.Server{
-		Address: fmt.Sprintf("%s:%d", host, config.port),
+		Address: fmt.Sprintf("%s:%d", host, cmdArgs.port),
 		Checker: checker,
 	}
 	server.Run()
+	return nil
 }
 
-func addFlags(cmd *cobra.Command, config *Config) {
-	flags := cmd.Flags()
-
-	flags.StringVarP(&config.clusterID, "cluster-id", "i", "", "cluster ID")
-	flags.StringVarP(&config.listenAddress, "listen-address", "l", defaultAddress, "bind address")
-	flags.IntVarP(&config.port, "port", "p", defaultPort, "bind port")
-	flags.StringSliceVarP(&config.namespaces, "namespaces", "n", []string{}, "list of namespaces to watch")
-	flags.StringSliceVarP(&config.excludedNamespaces, "excluded-namespaces", "N", strings.Split(defaultExcludes, ","),
-		"list of namespaces to exclude")
-
-	interval, err := time.ParseDuration(defaultInterval)
+func duration(s string) time.Duration {
+	d, err := time.ParseDuration(s)
 	if err != nil {
 		panic(err)
 	}
-	flags.DurationVarP(&config.interval, "time-between-hc", "t", interval, "time between two consecutive health checks")
-
-	flags.IntVarP(&config.nsuccess, "successful-hc-cnt", "s", defaultNSuccess, "number of successful consecutive health checks counts")
-	flags.IntVarP(&config.nfailure, "failed-hc-cnt", "f", defaultNFailure, "number of failed consecutive health checks counts")
-	flags.IntVarP(&config.threshold, "status-threshold", "P", defaultThreshold, "percentage of successful health checks to set cluster status OK")
-
-	cmd.MarkFlagRequired("cluster-id")
+	return d
 }

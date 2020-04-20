@@ -10,4 +10,5 @@ RUN go test ./... && go build -o chc
 
 FROM scratch
 COPY --from=build /go/src/github.com/wiley/do-k8s-cluster-health-check/chc ./chc
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 ENTRYPOINT ["./chc"]
