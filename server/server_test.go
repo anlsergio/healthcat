@@ -113,7 +113,7 @@ func TestReadiness(t *testing.T) {
 }
 
 func TestServices(t *testing.T) {
-	req := httptest.NewRequest("", "/healthz/services", nil)
+	req := httptest.NewRequest("", "/services", nil)
 	resp := httptest.NewRecorder()
 
 	state := checker.ClusterState{
