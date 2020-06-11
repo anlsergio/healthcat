@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"log"
@@ -24,6 +25,7 @@ type StateReporter interface {
 	Add(url string)
 	Delete(url string)
 	State() checker.ClusterState
+	Healthy() bool
 	Ready() bool
 }
 
@@ -59,8 +61,7 @@ func router(sr StateReporter) http.Handler {
 	r.Use(middleware.Logger)
 
 	r.Get("/status", func(w http.ResponseWriter, r *http.Request) {
-		state := sr.State()
-		if state.Healthy {
+		if sr.Healthy() {
 			w.WriteHeader(http.StatusOK)
 			io.WriteString(w, "OK\n")
 		} else {
@@ -82,7 +83,16 @@ func router(sr StateReporter) http.Handler {
 		}
 	})
 
-	r.Post("/targets", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/services", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		encoder := json.NewEncoder(w)
+		err := encoder.Encode(sr.State())
+		if err != nil {
+			http.Error(w, "Error writing response", http.StatusInternalServerError)
+		}
+	})
+
+	r.Post("/services", func(w http.ResponseWriter, r *http.Request) {
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			log.Printf("Error reading request body: %v", err)
@@ -92,7 +102,7 @@ func router(sr StateReporter) http.Handler {
 		sr.Add(target)
 	})
 
-	r.Delete("/targets", func(w http.ResponseWriter, r *http.Request) {
+	r.Delete("/services", func(w http.ResponseWriter, r *http.Request) {
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			log.Printf("Error reading request body: %v", err)

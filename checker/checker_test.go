@@ -23,7 +23,7 @@ func TestEmptyIsHealthy(t *testing.T) {
 	}
 	defer checker.Stop()
 
-	if !checker.State().Healthy {
+	if !checker.Healthy() {
 		t.Error("empty checker must report healthy status")
 	}
 }
@@ -51,7 +51,7 @@ func TestHealthyEndpoint(t *testing.T) {
 	checker.Add(server.URL)
 	<-checker.updates
 
-	if !checker.State().Healthy {
+	if !checker.Healthy() {
 		t.Error("checker must be healthy")
 	}
 }
@@ -79,7 +79,7 @@ func TestUnhealthyEndpoint(t *testing.T) {
 	checker.Add(server.URL)
 	<-checker.updates
 
-	if checker.State().Healthy {
+	if checker.Healthy() {
 		t.Error("checker must be unhealthy")
 	}
 }
@@ -120,6 +120,31 @@ func TestClusterID(t *testing.T) {
 				} else {
 					t.Errorf("got error %v", err)
 				}
+			}
+		})
+	}
+}
+
+func TestHealthStatus(t *testing.T) {
+	cases := []struct {
+		name      string
+		total     int
+		healthy   int
+		threshold int
+		status    bool
+	}{
+		{"Empty", 0, 0, 100, true},
+		{"AllHealthy", 10, 10, 100, true},
+		{"NoneHealthy", 10, 0, 100, false},
+		{"HealthyEqualToThreshold", 10, 5, 50, true},
+		{"HealthyBelowThreshold", 10, 4, 50, false},
+		{"HealthyAboveThreshold", 10, 6, 50, true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if want, got := c.status, calcHealthStatus(c.total, c.healthy, c.threshold); want != got {
+				t.Errorf("Want status %t, got %t", want, got)
 			}
 		})
 	}

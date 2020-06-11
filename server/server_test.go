@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,12 +13,15 @@ import (
 type testReporter struct {
 	healthy bool
 	ready   bool
+	state   checker.ClusterState
 }
 
 func (r testReporter) State() checker.ClusterState {
-	return checker.ClusterState{
-		Healthy: r.healthy,
-	}
+	return checker.ClusterState{}
+}
+
+func (r testReporter) Healthy() bool {
+	return r.healthy
 }
 
 func (r testReporter) Ready() bool {
@@ -105,5 +109,31 @@ func TestReadiness(t *testing.T) {
 				t.Errorf("Want message %q, got %q", want, got)
 			}
 		})
+	}
+}
+
+func TestServices(t *testing.T) {
+	req := httptest.NewRequest("", "/services", nil)
+	resp := httptest.NewRecorder()
+
+	state := checker.ClusterState{
+		Cluster: checker.Cluster{
+			Name:    "c1",
+			Healthy: false,
+			Total:   2,
+			Failed:  1,
+		},
+		Services: []checker.Service{
+			{Name: "s1", Healthy: true},
+			{Name: "s2", Healthy: false},
+		},
+	}
+	server := router(testReporter{state: state})
+	server.ServeHTTP(resp, req)
+
+	decoder := json.NewDecoder(resp.Body)
+
+	if err := decoder.Decode(&state); err != nil {
+		t.Errorf("Error decoding response: %v", err)
 	}
 }
