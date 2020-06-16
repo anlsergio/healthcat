@@ -11,6 +11,12 @@ image:
   repository: 681504496077.dkr.ecr.us-east-1.amazonaws.com/chc
   pullPolicy: IfNotPresent
 
+# see chc --help for list of arguments
+args: []
+  # - cluster-id=wpngdev
+  # - port=80
+  # - namespaces=wasdev
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
