@@ -14,3 +14,5 @@
 # The binary itself
 chc
 
+# IDE
+.vscode
