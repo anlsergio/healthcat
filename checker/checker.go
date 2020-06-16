@@ -92,12 +92,15 @@ func (c *Checker) Run() error {
 }
 
 func (c *Checker) validate() error {
-	pattern := "^[a-zA-Z0-9\\-\\.]{3,63}$"
+	pattern := `^([a-z0-9]{1}[a-z0-9\-\.]{1,61}[a-z0-9]{1})$`
 	if ok, err := regexp.MatchString(pattern, c.ClusterID); !ok {
 		if err != nil {
 			panic(err)
 		}
-		return errors.New("Cluster ID must be alphanumeric string of length between 3 an 63 inclusive ('.' and '-' are the only special characters allowed)")
+		return errors.New(`"cluster-id" must be provided and meet the following requirements:
+		- Lowercase alphanumeric string of length between 3 and 63 inclusive
+		- Only '-' and/or '.' special characters are allowed
+		- Must start/end with alphanumeric string only`)
 	}
 	return nil
 }

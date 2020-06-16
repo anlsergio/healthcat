@@ -106,9 +106,14 @@ func TestClusterID(t *testing.T) {
 		{"us-east-1.dev.edpub.wiley.com", true},
 		{" abc", false},
 		{"abc ", false},
+		{"Abc", false},
 		{"a b", false},
 		{"12", false},
 		{"😄", false},
+		{"-www.mydomain.com", false},
+		{"www.mydomain.com-", false},
+		{".www.mydomain.com", false},
+		{"www.mydomain.com.", false},
 	}
 
 	for _, tt := range tests {
