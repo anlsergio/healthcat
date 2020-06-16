@@ -92,11 +92,12 @@ func (c *Checker) Run() error {
 }
 
 func (c *Checker) validate() error {
-	if ok, err := regexp.MatchString("^[[:alnum:]]{3,30}$", c.ClusterID); !ok {
+	pattern := "^[a-zA-Z0-9\\-\\.]{3,63}$"
+	if ok, err := regexp.MatchString(pattern, c.ClusterID); !ok {
 		if err != nil {
 			panic(err)
 		}
-		return errors.New("Cluster ID must be alphanumeric string of length between 3 an 30 inclusive")
+		return errors.New("Cluster ID must be alphanumeric string of length between 3 an 63 inclusive ('.' and '-' are the only special characters allowed)")
 	}
 	return nil
 }
