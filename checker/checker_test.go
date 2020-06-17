@@ -98,12 +98,22 @@ func TestClusterID(t *testing.T) {
 		valid bool
 	}{
 		{"", false},
-		{strings.Repeat("a", 31), false},
-		{"12", false},
+		{strings.Repeat("a", 64), false},
 		{"123", true},
 		{"abc", true},
+		{"www.mydomain.com", true},
+		{"wiley-dev-us-east-1", true},
+		{"us-east-1.dev.edpub.wiley.com", true},
+		{" abc", false},
+		{"abc ", false},
+		{"Abc", false},
 		{"a b", false},
-		{"😄",  false},
+		{"12", false},
+		{"😄", false},
+		{"-www.mydomain.com", false},
+		{"www.mydomain.com-", false},
+		{".www.mydomain.com", false},
+		{"www.mydomain.com.", false},
 	}
 
 	for _, tt := range tests {
