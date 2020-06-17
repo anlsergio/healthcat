@@ -4,6 +4,13 @@ description: Cluster Health Check monitors the health status of deployed service
 maintainers:
   - name: Anderson L. Sergio
     email: asergio@wiley.com
+  - name: Dimitar Georgievski
+    email: dgeorgievs@wiley.com
+  - name: Alexey Kravtsov
+    email: akravtsov@wiley.com
+  - name: Vadim Kilimnichenko
+    email: vkilimnich@wiley.com
+    
 # A chart can be either an 'application' or a 'library' chart.
 #
 # Application charts are a collection of templates that can be packaged into versioned archives
@@ -16,8 +23,8 @@ type: application
 
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
-version: 0.1.0
+version: 0.1.1
 
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application.
-appVersion: 0.1.0
+appVersion: 0.1.1

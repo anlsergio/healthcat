@@ -28,8 +28,9 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
-            - --cluster-id={{ .Values.clusterId }}
-            - --port=80
+            {{- range .Values.args }}
+            - --{{ . }}
+            {{- end }}
           ports:
             - name: http
               containerPort: 80

@@ -11,6 +11,11 @@ image:
   repository: 681504496077.dkr.ecr.us-east-1.amazonaws.com/chc
   pullPolicy: IfNotPresent
 
+args:
+  - cluster-id=wpngdev
+  - port=80
+  - namespaces=wasdev
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
@@ -41,7 +46,7 @@ service:
 
 ingress:
   enabled: false
-  
+
 istio:
   gateway:
     enabled: true
@@ -53,7 +58,7 @@ istio:
     mesh:
       hosts:
         - host: chc.dev.edpub.wiley.com
-        - host: chc.wasdev.svc.cluster.local
+        - host: chc.svc.cluster.local
 
 resources:
   # We usually recommend not to specify default resources and to leave this as a conscious
