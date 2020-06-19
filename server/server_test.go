@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"go.uber.org/zap"
 	"wiley.com/do-k8s-cluster-health-check/checker"
 )
 
@@ -31,6 +32,8 @@ func (r testReporter) Ready() bool {
 func (r testReporter) Add(url string)    {}
 func (r testReporter) Delete(url string) {}
 
+var Logger *zap.Logger
+
 func TestGetStatus(t *testing.T) {
 	cases := []struct {
 		healthy bool
@@ -47,10 +50,11 @@ func TestGetStatus(t *testing.T) {
 
 			reporter := testReporter{healthy: c.healthy}
 
-			server := router(reporter)
+			server := router(reporter, Logger)
 			server.ServeHTTP(response, request)
 
 			got := response.Body.String()
+
 			want := c.label
 
 			if got != want {
@@ -64,7 +68,7 @@ func TestHealthz(t *testing.T) {
 	request := httptest.NewRequest("", "/healthz", nil)
 	response := httptest.NewRecorder()
 
-	server := router(testReporter{})
+	server := router(testReporter{}, Logger)
 	server.ServeHTTP(response, request)
 
 	statusGot := response.Result().StatusCode
@@ -98,7 +102,7 @@ func TestReadiness(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/healthz/ready", nil)
 			resp := httptest.NewRecorder()
 
-			server := router(testReporter{ready: c.ready})
+			server := router(testReporter{ready: c.ready}, Logger)
 			server.ServeHTTP(resp, req)
 
 			if want, got := c.status, resp.Result().StatusCode; want != got {
@@ -128,7 +132,7 @@ func TestServices(t *testing.T) {
 			{Name: "s2", Healthy: false},
 		},
 	}
-	server := router(testReporter{state: state})
+	server := router(testReporter{state: state}, Logger)
 	server.ServeHTTP(resp, req)
 
 	decoder := json.NewDecoder(resp.Body)
@@ -136,4 +140,8 @@ func TestServices(t *testing.T) {
 	if err := decoder.Decode(&state); err != nil {
 		t.Errorf("Error decoding response: %v", err)
 	}
+}
+
+func init() {
+	Logger, _ = zap.NewDevelopment()
 }

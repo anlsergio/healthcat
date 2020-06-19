@@ -5,22 +5,26 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
 	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
+	"go.uber.org/zap"
 	"wiley.com/do-k8s-cluster-health-check/checker"
+	chczap "wiley.com/do-k8s-cluster-health-check/logger"
 )
 
+// Server properties
+// TODO: add better descriptipn
 type Server struct {
 	Address string
 	Checker *checker.Checker
+	Logger  *zap.Logger
 }
 
+// StateReporter methods
 type StateReporter interface {
 	Add(url string)
 	Delete(url string)
@@ -29,13 +33,17 @@ type StateReporter interface {
 	Ready() bool
 }
 
+// Run HTTP server
+// TODO: add better descriptipn
 func (s *Server) Run() {
 	interrupted := make(chan os.Signal, 1)
 	signal.Notify(interrupted, os.Interrupt)
 
+	sugaredLogger := s.Logger.Sugar()
+
 	httpServer := http.Server{
 		Addr:         s.Address,
-		Handler:      router(s.Checker),
+		Handler:      router(s.Checker, s.Logger),
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 5 * time.Second,
 		IdleTimeout:  30 * time.Second,
@@ -43,22 +51,25 @@ func (s *Server) Run() {
 
 	go func() {
 		<-interrupted
-		log.Printf("Stopping server")
+		sugaredLogger.Info("Stopping server")
 		s.Checker.Stop()
 		httpServer.Shutdown(context.Background())
 	}()
 
-	log.Printf("Starting server on %s", s.Address)
+	sugaredLogger.Infof("Starting server on %s", s.Address)
 	err := httpServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		panic(err)
 	}
 }
 
-func router(sr StateReporter) http.Handler {
+//
+// HTTP router
+// TODO: add better descriptipn
+func router(sr StateReporter, log *zap.Logger) http.Handler {
 	r := chi.NewRouter()
 
-	r.Use(middleware.Logger)
+	r.Use(chczap.Chczap(log, time.RFC3339, true))
 
 	r.Get("/status", func(w http.ResponseWriter, r *http.Request) {
 		if sr.Healthy() {
@@ -95,7 +106,6 @@ func router(sr StateReporter) http.Handler {
 	r.Post("/services", func(w http.ResponseWriter, r *http.Request) {
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			log.Printf("Error reading request body: %v", err)
 			return
 		}
 		target := string(body)
@@ -105,11 +115,23 @@ func router(sr StateReporter) http.Handler {
 	r.Delete("/services", func(w http.ResponseWriter, r *http.Request) {
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			log.Printf("Error reading request body: %v", err)
 			return
 		}
 		service := string(body)
 		sr.Delete(service)
 	})
 	return r
+}
+
+//
+// Clones the logger with new HTTP request fields
+//
+// TODO: Consider addding additional fields
+func getHTTPLogger(log *zap.SugaredLogger) func(*http.Request) *zap.SugaredLogger {
+	return func(r *http.Request) *zap.SugaredLogger {
+		return log.With(
+			zap.String("method", r.Method),
+			zap.String("path", r.URL.Path),
+		)
+	}
 }

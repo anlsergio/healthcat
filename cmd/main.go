@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 	"wiley.com/do-k8s-cluster-health-check/checker"
 	"wiley.com/do-k8s-cluster-health-check/server"
 )
@@ -18,6 +19,7 @@ const (
 	defaultNFailure  = 2
 	defaultInterval  = "1m"
 	defaultPort      = 8080
+	defaultLogPreset = "dev"
 )
 
 type mainCmdArgs struct {
@@ -30,6 +32,7 @@ type mainCmdArgs struct {
 	nfailure           int
 	threshold          int
 	port               int
+	logPreset          string
 }
 
 func newMainCmd(args *mainCmdArgs) *cobra.Command {
@@ -69,6 +72,7 @@ cluster identifier that will be included in all CHC reports.`,
 	flags.IntVarP(&args.nsuccess, "successful-hc-cnt", "s", defaultNSuccess, "number of successful consecutive health checks counts")
 	flags.IntVarP(&args.nfailure, "failed-hc-cnt", "f", defaultNFailure, "number of failed consecutive health checks counts")
 	flags.IntVarP(&args.threshold, "status-threshold", "P", defaultThreshold, "percentage of successful health checks to set cluster status OK")
+	flags.StringVar(&args.logPreset, "log-preset", defaultLogPreset, "Log preset config (dev|prod)")
 
 	cmd.MarkFlagRequired("cluster-id")
 
@@ -98,9 +102,31 @@ func runServer(cmdArgs *mainCmdArgs) error {
 		return err
 	}
 
+	var log *zap.Logger
+	var errLog error
+
+	switch cmdArgs.logPreset {
+	case "dev":
+		log, errLog = zap.NewDevelopment()
+	case "prod":
+		log, errLog = zap.NewProduction()
+	default:
+		log, errLog = zap.NewDevelopment()
+		log.Sugar().Infof("Log preset not provided. Using Development preset.")
+	}
+
+	defer log.Sync()
+
+	if errLog != nil {
+		panic(errLog)
+	}
+
+	log.Info("Logger initialized")
+
 	server := &server.Server{
 		Address: fmt.Sprintf("%s:%d", host, cmdArgs.port),
 		Checker: checker,
+		Logger:  log,
 	}
 	server.Run()
 	return nil
