@@ -70,6 +70,7 @@ func router(sr StateReporter, log *zap.Logger) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chczap.Chczap(log, time.RFC3339, true))
+	r.Use(chczap.RecoveryWithZap(log, false))
 
 	r.Get("/status", func(w http.ResponseWriter, r *http.Request) {
 		if sr.Healthy() {
