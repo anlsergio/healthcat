@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 	"wiley.com/do-k8s-cluster-health-check/checker"
 	chczap "wiley.com/do-k8s-cluster-health-check/logger"
+	"wiley.com/do-k8s-cluster-health-check/version"
 )
 
 // Server properties
@@ -51,12 +52,13 @@ func (s *Server) Run() {
 
 	go func() {
 		<-interrupted
-		logger.Info("Stopping server")
+		logger.Info("Stopping CHC")
 		s.Checker.Stop()
 		httpServer.Shutdown(context.Background())
 	}()
 
-	logger.Infof("Starting server on %s", s.Address)
+	logger.Infof("Starting CHC %s on %s", version.Version, s.Address)
+
 	err := httpServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		panic(err)
@@ -121,5 +123,15 @@ func router(sr StateReporter, log *zap.Logger) http.Handler {
 		service := string(body)
 		sr.Delete(service)
 	})
+
+	r.Get("/version", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		encoder := json.NewEncoder(w)
+		err := encoder.Encode(version.ChcVer)
+		if err != nil {
+			http.Error(w, "Error writing response", http.StatusInternalServerError)
+		}
+	})
+
 	return r
 }
