@@ -17,8 +17,8 @@ import (
 
 // Chczap returns a http.Handler (middleware) that logs requests using uber-go/zap.
 //
-// Requests with errors are logged using zap.Error().
-// Requests without errors are logged using zap.Info().
+// Requests without errors are logged using zap.Debug().
+// TODO: log errors with zap.Error().
 //
 // It receives:
 //   1. A time package format string (e.g. time.RFC3339).
@@ -43,7 +43,7 @@ func Chczap(logger *zap.Logger, timeFormat string, utc bool) func(http.Handler) 
 				end = end.UTC()
 			}
 
-			logger.Info(path,
+			logger.Debug(path,
 				zap.Int("status", ww.Status()),
 				zap.String("method", r.Method),
 				zap.String("path", path),
@@ -67,45 +67,47 @@ func Chczap(logger *zap.Logger, timeFormat string, utc bool) func(http.Handler) 
 func RecoveryWithZap(logger *zap.Logger, stack bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
-			if err := recover(); err != nil {
-				// Check for a broken connection, as it is not really a
-				// condition that warrants a panic stack trace.
-				var brokenPipe bool
-				if ne, ok := err.(*net.OpError); ok {
-					if se, ok := ne.Err.(*os.SyscallError); ok {
-						if strings.Contains(strings.ToLower(se.Error()), "broken pipe") || strings.Contains(strings.ToLower(se.Error()), "connection reset by peer") {
-							brokenPipe = true
+			defer func() {
+				if err := recover(); err != nil {
+					// Check for a broken connection, as it is not really a
+					// condition that warrants a panic stack trace.
+					var brokenPipe bool
+					if ne, ok := err.(*net.OpError); ok {
+						if se, ok := ne.Err.(*os.SyscallError); ok {
+							if strings.Contains(strings.ToLower(se.Error()), "broken pipe") || strings.Contains(strings.ToLower(se.Error()), "connection reset by peer") {
+								brokenPipe = true
+							}
 						}
 					}
-				}
 
-				httpRequest, _ := httputil.DumpRequest(r, false)
-				if brokenPipe {
-					logger.Error(r.URL.Path,
-						zap.Any("error", err),
-						zap.String("request", string(httpRequest)),
-					)
-					// If the connection is dead, we can't write a status to it.
-					// TODO: check if context processing is required
-					// https://github.com/gin-contrib/zap/blob/270883e70cf28188dc3a8f7e0517fcb3150bd0d8/zap.go#L87-L88
-					return
-				}
+					httpRequest, _ := httputil.DumpRequest(r, false)
+					if brokenPipe {
+						logger.Error(r.URL.Path,
+							zap.Any("error", err),
+							zap.String("request", string(httpRequest)),
+						)
+						// If the connection is dead, we can't write a status to it.
+						// TODO: check if context processing is required
+						// https://github.com/gin-contrib/zap/blob/270883e70cf28188dc3a8f7e0517fcb3150bd0d8/zap.go#L87-L88
+						return
+					}
 
-				if stack {
-					logger.Error("[Recovery from panic]",
-						zap.Time("time", time.Now()),
-						zap.Any("error", err),
-						zap.String("request", string(httpRequest)),
-						zap.String("stack", string(debug.Stack())),
-					)
-				} else {
-					logger.Error("[Recovery from panic]",
-						zap.Time("time", time.Now()),
-						zap.Any("error", err),
-						zap.String("request", string(httpRequest)),
-					)
+					if stack {
+						logger.Error("[Recovery from panic]",
+							zap.Time("time", time.Now()),
+							zap.Any("error", err),
+							zap.String("request", string(httpRequest)),
+							zap.String("stack", string(debug.Stack())),
+						)
+					} else {
+						logger.Error("[Recovery from panic]",
+							zap.Time("time", time.Now()),
+							zap.Any("error", err),
+							zap.String("request", string(httpRequest)),
+						)
+					}
 				}
-			}
+			}()
 
 			next.ServeHTTP(w, r)
 		}

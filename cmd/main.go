@@ -121,8 +121,6 @@ func runServer(cmdArgs *mainCmdArgs) error {
 		panic(errLog)
 	}
 
-	log.Info("Logger initialized")
-
 	server := &server.Server{
 		Address: fmt.Sprintf("%s:%d", host, cmdArgs.port),
 		Checker: checker,

@@ -39,7 +39,7 @@ func (s *Server) Run() {
 	interrupted := make(chan os.Signal, 1)
 	signal.Notify(interrupted, os.Interrupt)
 
-	sugaredLogger := s.Logger.Sugar()
+	logger := s.Logger.Sugar()
 
 	httpServer := http.Server{
 		Addr:         s.Address,
@@ -51,12 +51,12 @@ func (s *Server) Run() {
 
 	go func() {
 		<-interrupted
-		sugaredLogger.Info("Stopping server")
+		logger.Info("Stopping server")
 		s.Checker.Stop()
 		httpServer.Shutdown(context.Background())
 	}()
 
-	sugaredLogger.Infof("Starting server on %s", s.Address)
+	logger.Infof("Starting server on %s", s.Address)
 	err := httpServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		panic(err)
@@ -122,17 +122,4 @@ func router(sr StateReporter, log *zap.Logger) http.Handler {
 		sr.Delete(service)
 	})
 	return r
-}
-
-//
-// Clones the logger with new HTTP request fields
-//
-// TODO: Consider addding additional fields
-func getHTTPLogger(log *zap.SugaredLogger) func(*http.Request) *zap.SugaredLogger {
-	return func(r *http.Request) *zap.SugaredLogger {
-		return log.With(
-			zap.String("method", r.Method),
-			zap.String("path", r.URL.Path),
-		)
-	}
 }
