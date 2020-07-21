@@ -2,38 +2,89 @@ package k8s
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"os"
+	"path"
 
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
+type ServiceRegistry interface {
+	Add(name string)
+	Delete(name string)
+}
+
+type EventSource struct {
+	Logger             *zap.Logger
+	Namespaces         []string
+	ExcludedNamespaces []string
+	Registry           ServiceRegistry
+
+	clientset *kubernetes.Clientset
+	slogger   *zap.SugaredLogger
+}
+
 // Start starts the loop
-func Start() error {
-	config, err := rest.InClusterConfig()
+func (e *EventSource) Start() error {
+	e.slogger = e.Logger.Sugar()
+
+	config, err := getConfig()
 	if err != nil {
 		return err
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	e.clientset, err = kubernetes.NewForConfig(config)
+
 	if err != nil {
 		return err
 	}
 
-	watch, err := clientset.CoreV1().Pods("default").Watch(context.TODO(), metav1.ListOptions{})
+	go e.Run()
+
+	return nil
+}
+
+func (e *EventSource) Run() {
+	serviceWatch, err := e.clientset.CoreV1().Services("").Watch(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return err
+		e.slogger.Errorf("Error while watching services: %v", err)
+		return
 	}
 
-	for event := range watch.ResultChan() {
-		obj := event.Object
-		if pod, ok := obj.(*v1.Pod); ok {
-			log.Printf("event: %v, pod %v in %v", event.Type, pod.Name, pod.Status.Phase)
-		} else {
-			log.Printf("Expected pod; got %T", obj)
+	for event := range serviceWatch.ResultChan() {
+		switch event.Type {
+		case watch.Added:
+			svc := event.Object.(*v1.Service)
+
+			e.slogger.Infof("Added service: %#v", svc)
+			e.Registry.Add(fmt.Sprintf("http://%s:%d", svc.Name, svc.Spec.Ports[0].Port))
+		case watch.Deleted:
+			svc := event.Object.(*v1.Service)
+			e.Registry.Delete(fmt.Sprintf("http://%s:%d", svc.Name, svc.Spec.Ports[0].Port))
 		}
 	}
-	return nil
+}
+
+func getConfig() (*rest.Config, error) {
+	config, err := rest.InClusterConfig()
+	if err == nil {
+		return config, nil
+	}
+
+	if err != rest.ErrNotInCluster {
+		return nil, err
+	}
+
+	homedir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+
+	return clientcmd.BuildConfigFromFlags("", path.Join(homedir, ".kube", "config"))
 }

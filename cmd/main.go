@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"wiley.com/do-k8s-cluster-health-check/checker"
+	"wiley.com/do-k8s-cluster-health-check/checker/k8s"
 	"wiley.com/do-k8s-cluster-health-check/server"
 )
 
@@ -115,10 +116,20 @@ func runServer(cmdArgs *mainCmdArgs) error {
 		log.Sugar().Infof("Log preset not provided. Using Development preset.")
 	}
 
-	defer log.Sync()
-
 	if errLog != nil {
 		panic(errLog)
+	}
+
+	defer log.Sync()
+
+	eventSource := &k8s.EventSource{
+		Logger:             log,
+		Namespaces:         cmdArgs.namespaces,
+		ExcludedNamespaces: cmdArgs.excludedNamespaces,
+		Registry:           checker,
+	}
+	if err := eventSource.Start(); err != nil {
+		return err
 	}
 
 	server := &server.Server{
