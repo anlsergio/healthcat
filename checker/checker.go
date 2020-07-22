@@ -3,11 +3,12 @@ package checker
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"regexp"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 type Cluster struct {
@@ -35,10 +36,12 @@ type Checker struct {
 	FailureThreshold int
 	SuccessThreshold int
 	StateThreshold   int
+	Logger           *zap.Logger
 
 	done chan struct{}
 	mux  sync.Mutex
 
+	slogger      *zap.SugaredLogger
 	client       *http.Client
 	targets      map[string]*target
 	activeCount  int
@@ -77,6 +80,7 @@ func (c *Checker) Run() error {
 	c.done = make(chan struct{})
 	c.mux.Unlock()
 
+	c.slogger = c.Logger.Sugar()
 	c.targets = make(map[string]*target)
 	c.reports = make(chan *report)
 	c.added = make(chan *target)
@@ -167,7 +171,7 @@ func (c *Checker) Ready() bool {
 // Add adds the given service to the check list
 func (c *Checker) Add(name string, url string) {
 	if name == "" || url == "" {
-		log.Println("Invalid service definition")
+		c.slogger.Errorf("Invalid service definition")
 		return
 	}
 	c.added <- &target{name: name, url: url, done: make(chan struct{})}
@@ -176,7 +180,7 @@ func (c *Checker) Add(name string, url string) {
 // Delete removes the given service from the check list
 func (c *Checker) Delete(name string) {
 	if name == "" {
-		log.Println("Attempt to remove empty target")
+		c.slogger.Error("Attempt to remove empty target")
 		return
 	}
 	c.deleted <- name
@@ -184,10 +188,10 @@ func (c *Checker) Delete(name string) {
 
 func (c *Checker) addTarget(t *target) {
 	if _, ok := c.targets[t.name]; ok {
-		log.Printf("Attempt to add already added target %s\n", t.name)
+		c.slogger.Errorf("Attempt to add already added target %s\n", t.name)
 		return
 	}
-	log.Printf("Adding target %s", t.name)
+	c.slogger.Infof("Adding target %s", t.name)
 	c.targets[t.name] = t
 	go c.newTargetLoop(t)
 }
@@ -195,7 +199,7 @@ func (c *Checker) addTarget(t *target) {
 func (c *Checker) deleteTarget(url string) {
 	t, ok := c.targets[url]
 	if !ok {
-		log.Printf("Attempt to delete unregistered target %s\n", url)
+		c.slogger.Errorf("Attempt to delete unregistered target %s\n", url)
 		return
 	}
 
@@ -214,7 +218,7 @@ func (c *Checker) deleteTarget(url string) {
 func (c *Checker) update(r *report) {
 	t, ok := c.targets[r.name]
 	if !ok {
-		log.Printf("Received report from unregistered target %s\n", r.name)
+		c.slogger.Warnf("Received report from unregistered target %s", r.name)
 		return
 	}
 	if t.state == 0 {
@@ -243,7 +247,7 @@ func (c *Checker) update(r *report) {
 	}
 
 	c.updateHealthStatus()
-	log.Printf("Report from %s: s:%d, h:%t, err:%v\n", t.url, t.state, t.healthy, r.err)
+	c.slogger.Infof("Report from %s: s:%d, h:%t, err:%v", t.url, t.state, t.healthy, r.err)
 	if c.updates != nil {
 		select {
 		case c.updates <- struct{}{}:
@@ -269,7 +273,7 @@ Loop:
 		case a := <-c.accessors:
 			a(c)
 		case <-c.done:
-			log.Println("Stopping all target loops")
+			c.slogger.Info("Stopping all target loops")
 			for _, c := range c.targets {
 				close(c.done)
 			}

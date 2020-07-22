@@ -92,17 +92,6 @@ func runServer(cmdArgs *mainCmdArgs) error {
 		host = cmdArgs.host
 	}
 
-	checker := &checker.Checker{
-		ClusterID:        cmdArgs.clusterID,
-		Interval:         cmdArgs.interval,
-		FailureThreshold: cmdArgs.nfailure,
-		SuccessThreshold: cmdArgs.nsuccess,
-		StateThreshold:   cmdArgs.threshold,
-	}
-	if err := checker.Run(); err != nil {
-		return err
-	}
-
 	var log *zap.Logger
 	var errLog error
 
@@ -121,6 +110,18 @@ func runServer(cmdArgs *mainCmdArgs) error {
 	}
 
 	defer log.Sync()
+
+	checker := &checker.Checker{
+		ClusterID:        cmdArgs.clusterID,
+		Interval:         cmdArgs.interval,
+		FailureThreshold: cmdArgs.nfailure,
+		SuccessThreshold: cmdArgs.nsuccess,
+		StateThreshold:   cmdArgs.threshold,
+		Logger:           log,
+	}
+	if err := checker.Run(); err != nil {
+		return err
+	}
 
 	eventSource := &k8s.EventSource{
 		Logger:             log,
