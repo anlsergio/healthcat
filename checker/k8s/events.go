@@ -13,7 +13,7 @@ import (
 )
 
 type ServiceRegistry interface {
-	Add(name string)
+	Add(name, url string)
 	Delete(name string)
 }
 
@@ -56,14 +56,42 @@ func (e *EventSource) Run() {
 
 	for event := range serviceWatch.ResultChan() {
 		switch event.Type {
+		case watch.Error:
+			e.slogger.Errorf("Error listening to service events: %v", event.Object)
+			break
 		case watch.Added:
-			svc := event.Object.(*v1.Service)
-
-			e.slogger.Infof("Added service: %#v", svc)
-			e.Registry.Add(fmt.Sprintf("http://%s:%d", svc.Name, svc.Spec.Ports[0].Port))
+			e.addService(event.Object.(*v1.Service))
 		case watch.Deleted:
+			e.deleteService(event.Object.(*v1.Service))
+		case watch.Modified:
 			svc := event.Object.(*v1.Service)
-			e.Registry.Delete(fmt.Sprintf("http://%s:%d", svc.Name, svc.Spec.Ports[0].Port))
+			// TODO: This may not work as the commands may not come in order.
+			// Consider using a single command channel in checker or
+			// introduce a separate command for updating service
+			e.deleteService(svc)
+			e.addService(svc)
+		default:
+			e.slogger.Info("Ignoring unsupported event: %s", event.Type)
 		}
 	}
+}
+
+func (e *EventSource) addService(svc *v1.Service) {
+	schema := svc.ObjectMeta.Annotations["chc/schema"]
+	if schema == "" {
+		schema = "http"
+	}
+
+	path := svc.ObjectMeta.Annotations["chc/path"]
+	if path == "" {
+		path = "/healthz"
+	}
+
+	port := svc.Spec.Ports[0].Port
+	e.slogger.Infof("Added service: %#v", svc.Name)
+	e.Registry.Add(svc.Name, fmt.Sprintf("%s://%s:%d%s", schema, svc.Name, port, path))
+}
+
+func (e *EventSource) deleteService(svc *v1.Service) {
+	e.Registry.Delete(svc.Name)
 }

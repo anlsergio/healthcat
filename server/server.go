@@ -27,7 +27,7 @@ type Server struct {
 
 // StateReporter methods
 type StateReporter interface {
-	Add(url string)
+	Add(name, url string)
 	Delete(url string)
 	State() checker.ClusterState
 	Healthy() bool
@@ -112,7 +112,7 @@ func router(sr StateReporter, log *zap.Logger) http.Handler {
 			return
 		}
 		target := string(body)
-		sr.Add(target)
+		sr.Add(target, target)
 	})
 
 	r.Delete("/services", func(w http.ResponseWriter, r *http.Request) {

@@ -48,7 +48,7 @@ func TestHealthyEndpoint(t *testing.T) {
 	}))
 	defer server.Close()
 
-	checker.Add(server.URL)
+	checker.Add("test", server.URL)
 	<-checker.updates
 
 	if !checker.Healthy() {
@@ -76,7 +76,7 @@ func TestUnhealthyEndpoint(t *testing.T) {
 	}))
 	defer server.Close()
 
-	checker.Add(server.URL)
+	checker.Add("test", server.URL)
 	<-checker.updates
 
 	if checker.Healthy() {
