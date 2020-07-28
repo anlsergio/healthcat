@@ -77,6 +77,10 @@ func (e *EventSource) Run() {
 }
 
 func (e *EventSource) addService(svc *v1.Service) {
+	if !matchFilters(svc.Namespace, e.Namespaces, e.ExcludedNamespaces) {
+		e.slogger.Debugf("Ignoring service %q in excluded namespace %q", svc.Name, svc.Namespace)
+		return
+	}
 	schema := svc.ObjectMeta.Annotations["chc/schema"]
 	if schema == "" {
 		schema = "http"
@@ -94,4 +98,20 @@ func (e *EventSource) addService(svc *v1.Service) {
 
 func (e *EventSource) deleteService(svc *v1.Service) {
 	e.Registry.Delete(svc.Name)
+}
+
+func matchFilters(namespace string, included, excluded []string) bool {
+	for _, n := range excluded {
+		if n == namespace {
+			return false
+		}
+	}
+
+	for _, n := range included {
+		if n == namespace {
+			return true
+		}
+	}
+
+	return len(included) == 0
 }
