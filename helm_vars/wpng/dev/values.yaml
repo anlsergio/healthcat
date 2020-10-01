@@ -10,11 +10,13 @@ replicaCount: 1
 image:
   repository: 681504496077.dkr.ecr.us-east-1.amazonaws.com/chc
   pullPolicy: IfNotPresent
+  tag:
 
 args:
   - cluster-id=wpngdev
   - port=80
-  - namespaces=wasdev
+  - namespaces=wpngdev,wpngperf,dgeorgievs
+  - log-preset=prod
 
 imagePullSecrets: []
 nameOverride: ""
@@ -49,7 +51,7 @@ ingress:
 
 istio:
   gateway:
-    enabled: true
+    enabled: false
     ingress:
       hosts:
         - host: chc.dev.edpub.wiley.com

@@ -36,9 +36,11 @@ Common labels
 */}}
 {{- define "helm.labels" -}}
 helm.sh/chart: {{ include "helm.chart" . }}
+app: {{ include "helm.name" . }}
 {{ include "helm.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}

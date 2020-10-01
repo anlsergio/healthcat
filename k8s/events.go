@@ -1,7 +1,6 @@
 package k8s
 
 import (
-	"context"
 	"fmt"
 
 	"go.uber.org/zap"
@@ -12,11 +11,14 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// ServiceRegistry is TOOD
+//
 type ServiceRegistry interface {
 	Add(name, url string)
 	Delete(name string)
 }
 
+// EventSource is TODO
 type EventSource struct {
 	Logger             *zap.Logger
 	Namespaces         []string
@@ -47,8 +49,9 @@ func (e *EventSource) Start() error {
 	return nil
 }
 
+// Run runs the event loop
 func (e *EventSource) Run() {
-	serviceWatch, err := e.clientset.CoreV1().Services("").Watch(context.TODO(), metav1.ListOptions{})
+	serviceWatch, err := e.clientset.CoreV1().Services("").Watch(metav1.ListOptions{})
 	if err != nil {
 		e.slogger.Errorf("Error while watching services: %v", err)
 		return
@@ -76,6 +79,7 @@ func (e *EventSource) Run() {
 	}
 }
 
+// addService TODO
 func (e *EventSource) addService(svc *v1.Service) {
 	if !matchFilters(svc.Namespace, e.Namespaces, e.ExcludedNamespaces) {
 		e.slogger.Debugf("Ignoring service %q in excluded namespace %q", svc.Name, svc.Namespace)
@@ -96,10 +100,12 @@ func (e *EventSource) addService(svc *v1.Service) {
 	e.Registry.Add(svc.Name, fmt.Sprintf("%s://%s:%d%s", schema, svc.Name, port, path))
 }
 
+// deleteService deletes a cluster service
 func (e *EventSource) deleteService(svc *v1.Service) {
 	e.Registry.Delete(svc.Name)
 }
 
+// matchFilters is a filter
 func matchFilters(namespace string, included, excluded []string) bool {
 	for _, n := range excluded {
 		if n == namespace {

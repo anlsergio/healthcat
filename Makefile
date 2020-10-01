@@ -15,7 +15,7 @@ GOLANGCI_LINT_VERSION ?= v1.23.8
 GOLANGCI_LINT_CONCURRENCY ?= 4
 GOLANGCI_LINT_DEADLINE ?= 180
 # useful for passing --build-arg http_proxy :)
-DOCKER_BUILD_FLAGS :=
+DOCKER_BUILD_FLAGS := --build-arg MODULE_NAME="$(MODULE_NAME)"
 
 all: build
 
@@ -31,7 +31,7 @@ install: test
 	go install -v
 
 docker:
-	docker build -t $(IMAGE_NAME):$(GIT_HASH) . $(DOCKER_BUILD_FLAGS)
+	docker build -t $(IMAGE_NAME):$(GIT_HASH) $(DOCKER_BUILD_FLAGS) .
 
 docker-dev: docker
 	docker tag $(IMAGE_NAME):$(GIT_HASH) $(IMAGE_NAME):dev

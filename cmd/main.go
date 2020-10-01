@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"wiley.com/do-k8s-cluster-health-check/checker"
-	"wiley.com/do-k8s-cluster-health-check/checker/k8s"
+	"wiley.com/do-k8s-cluster-health-check/k8s"
 	"wiley.com/do-k8s-cluster-health-check/server"
 )
 
