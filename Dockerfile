@@ -2,7 +2,9 @@ FROM golang:1.15.2-alpine3.12 as build
 COPY . /go/src/github.com/wiley/do-k8s-cluster-health-check/
 WORKDIR /go/src/github.com/wiley/do-k8s-cluster-health-check/
 
-ARG MODULE_NAME=wiley.com/do-k8s-cluster-health-check
+# If MODULE_NAME is not provided by the build process 
+# version settings will not be set.
+ARG MODULE_NAME
 
 #disable crosscompiling
 ENV CGO_ENABLED ${CGO_ENABLED:-0}

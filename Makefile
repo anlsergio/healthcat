@@ -1,4 +1,4 @@
-MODULE_NAME="wiley.com/do-k8s-cluster-health-check"
+MODULE_NAME=$$(awk '/module/{ print $2 }' ./go.mod)
 BINARY_NAME := chc
 VERSION_VAR := $(MODULE_NAME)/version.Version
 GIT_VAR := $(MODULE_NAME)/version.GitCommit
@@ -71,4 +71,22 @@ tidy:
 version:
 	@echo $(REPO_VERSION)
 
-.PHONY: build version
+debug-env:
+	@echo "MODULE_NAME: $(MODULE_NAME)"
+	@echo "BINARY_NAME: $(BINARY_NAME)"
+	@echo "VERSION_VAR: $(VERSION_VAR)"
+	@echo "GIT_VAR: $(GIT_VAR)"
+	@echo "REPO_VERSION: $(REPO_VERSION)"
+	@echo "BUILD_DATE: $(BUILD_DATE)"
+	@echo "GIT_HASH: $(GIT_HASH)"
+	@echo "GOBUILD_VERSION_ARGS: $(GOBUILD_VERSION_ARGS)"
+	@echo "DOCKER_REPO: $(DOCKER_REPO)"
+	@echo "IMAGE_NAME: $(IMAGE_NAME)"
+	@echo "ARCH: $(ARCH)"
+	@echo "GOLANGCI_LINT_VERSION: $(GOLANGCI_LINT_VERSION)"
+	@echo "GOLANGCI_LINT_CONCURRENCY: $(GOLANGCI_LINT_CONCURRENCY)"
+	@echo "GOLANGCI_LINT_DEADLINE: $(GOLANGCI_LINT_DEADLINE)"
+	@echo "DOCKER_BUILD_FLAGS: $(DOCKER_BUILD_FLAGS)"
+
+
+.PHONY: build version debug-env
