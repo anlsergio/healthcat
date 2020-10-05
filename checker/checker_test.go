@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 func TestEmptyIsHealthy(t *testing.T) {
@@ -16,6 +18,7 @@ func TestEmptyIsHealthy(t *testing.T) {
 		FailureThreshold: 1,
 		SuccessThreshold: 1,
 		StateThreshold:   100,
+		Logger:           zap.NewNop(),
 	}
 	if err := checker.Run(); err != nil {
 		t.Errorf("got error %v", err)
@@ -35,6 +38,7 @@ func TestHealthyEndpoint(t *testing.T) {
 		FailureThreshold: 1,
 		SuccessThreshold: 1,
 		StateThreshold:   100,
+		Logger:           zap.NewNop(),
 	}
 	checker.updates = make(chan struct{}, 1)
 	if err := checker.Run(); err != nil {
@@ -48,7 +52,7 @@ func TestHealthyEndpoint(t *testing.T) {
 	}))
 	defer server.Close()
 
-	checker.Add(server.URL)
+	checker.Add("test", server.URL)
 	<-checker.updates
 
 	if !checker.Healthy() {
@@ -63,6 +67,7 @@ func TestUnhealthyEndpoint(t *testing.T) {
 		FailureThreshold: 1,
 		SuccessThreshold: 1,
 		StateThreshold:   100,
+		Logger:           zap.NewNop(),
 	}
 	checker.updates = make(chan struct{}, 1)
 	if err := checker.Run(); err != nil {
@@ -76,7 +81,7 @@ func TestUnhealthyEndpoint(t *testing.T) {
 	}))
 	defer server.Close()
 
-	checker.Add(server.URL)
+	checker.Add("test", server.URL)
 	<-checker.updates
 
 	if checker.Healthy() {
@@ -120,6 +125,7 @@ func TestClusterID(t *testing.T) {
 		t.Run(tt.id, func(t *testing.T) {
 			c := &Checker{
 				ClusterID: tt.id,
+				Logger:    zap.NewNop(),
 			}
 			err := c.Run()
 			c.Stop()

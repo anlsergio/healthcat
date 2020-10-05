@@ -10,6 +10,7 @@ replicaCount: 1
 image:
   repository: 681504496077.dkr.ecr.us-east-1.amazonaws.com/chc
   pullPolicy: IfNotPresent
+  tag:
 
 # see chc --help for list of arguments
 args: []

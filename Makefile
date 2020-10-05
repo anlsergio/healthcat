@@ -1,4 +1,4 @@
-MODULE_NAME="wiley.com/do-k8s-cluster-health-check"
+MODULE_NAME=$$(awk '/module/{ print $2 }' ./go.mod)
 BINARY_NAME := chc
 VERSION_VAR := $(MODULE_NAME)/version.Version
 GIT_VAR := $(MODULE_NAME)/version.GitCommit
@@ -15,7 +15,7 @@ GOLANGCI_LINT_VERSION ?= v1.23.8
 GOLANGCI_LINT_CONCURRENCY ?= 4
 GOLANGCI_LINT_DEADLINE ?= 180
 # useful for passing --build-arg http_proxy :)
-DOCKER_BUILD_FLAGS :=
+DOCKER_BUILD_FLAGS := --build-arg MODULE_NAME="$(MODULE_NAME)"
 
 all: build
 
@@ -31,7 +31,7 @@ install: test
 	go install -v
 
 docker:
-	docker build -t $(IMAGE_NAME):$(GIT_HASH) . $(DOCKER_BUILD_FLAGS)
+	docker build -t $(IMAGE_NAME):$(GIT_HASH) $(DOCKER_BUILD_FLAGS) .
 
 docker-dev: docker
 	docker tag $(IMAGE_NAME):$(GIT_HASH) $(IMAGE_NAME):dev
@@ -71,4 +71,22 @@ tidy:
 version:
 	@echo $(REPO_VERSION)
 
-.PHONY: build version
+debug-env:
+	@echo "MODULE_NAME: $(MODULE_NAME)"
+	@echo "BINARY_NAME: $(BINARY_NAME)"
+	@echo "VERSION_VAR: $(VERSION_VAR)"
+	@echo "GIT_VAR: $(GIT_VAR)"
+	@echo "REPO_VERSION: $(REPO_VERSION)"
+	@echo "BUILD_DATE: $(BUILD_DATE)"
+	@echo "GIT_HASH: $(GIT_HASH)"
+	@echo "GOBUILD_VERSION_ARGS: $(GOBUILD_VERSION_ARGS)"
+	@echo "DOCKER_REPO: $(DOCKER_REPO)"
+	@echo "IMAGE_NAME: $(IMAGE_NAME)"
+	@echo "ARCH: $(ARCH)"
+	@echo "GOLANGCI_LINT_VERSION: $(GOLANGCI_LINT_VERSION)"
+	@echo "GOLANGCI_LINT_CONCURRENCY: $(GOLANGCI_LINT_CONCURRENCY)"
+	@echo "GOLANGCI_LINT_DEADLINE: $(GOLANGCI_LINT_DEADLINE)"
+	@echo "DOCKER_BUILD_FLAGS: $(DOCKER_BUILD_FLAGS)"
+
+
+.PHONY: build version debug-env

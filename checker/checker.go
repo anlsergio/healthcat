@@ -3,11 +3,12 @@ package checker
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"regexp"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 type Cluster struct {
@@ -35,16 +36,18 @@ type Checker struct {
 	FailureThreshold int
 	SuccessThreshold int
 	StateThreshold   int
+	Logger           *zap.Logger
 
 	done chan struct{}
 	mux  sync.Mutex
 
+	slogger      *zap.SugaredLogger
 	client       *http.Client
 	targets      map[string]*target
 	activeCount  int
 	healthyCount int
 	healthy      bool
-	added        chan string
+	added        chan *target
 	deleted      chan string
 	reports      chan *report
 	accessors    chan accessor
@@ -55,7 +58,8 @@ type Checker struct {
 type accessor func(c *Checker)
 
 type target struct {
-	url        string
+	name       string // name of the service
+	url        string // full url to check inlcuding the path
 	healthy    bool
 	done       chan struct{}
 	lastReport *report
@@ -66,7 +70,7 @@ type target struct {
 	state int64
 }
 
-// Starts the checker
+//Run starts the checker
 func (c *Checker) Run() error {
 	if err := c.validate(); err != nil {
 		return err
@@ -76,9 +80,10 @@ func (c *Checker) Run() error {
 	c.done = make(chan struct{})
 	c.mux.Unlock()
 
+	c.slogger = c.Logger.Sugar()
 	c.targets = make(map[string]*target)
 	c.reports = make(chan *report)
-	c.added = make(chan string)
+	c.added = make(chan *target)
 	c.deleted = make(chan string)
 	c.accessors = make(chan accessor)
 	c.client = &http.Client{
@@ -163,42 +168,38 @@ func (c *Checker) Ready() bool {
 	return <-result
 }
 
-// Add adds the given target to the check list
-func (c *Checker) Add(url string) {
-	if url == "" {
-		log.Println("Attempt to add empty target")
+// Add adds the given service to the check list
+func (c *Checker) Add(name string, url string) {
+	if name == "" || url == "" {
+		c.slogger.Errorf("Invalid service definition")
 		return
 	}
-	c.added <- url
+	c.added <- &target{name: name, url: url, done: make(chan struct{})}
 }
 
-// Delete removes the given target from the check list
-func (c *Checker) Delete(url string) {
-	if url == "" {
-		log.Println("Attempt to remove empty target")
+// Delete removes the given service from the check list
+func (c *Checker) Delete(name string) {
+	if name == "" {
+		c.slogger.Error("Attempt to remove empty target")
 		return
 	}
-	c.deleted <- url
+	c.deleted <- name
 }
 
-func (c *Checker) addTarget(url string) {
-	if _, ok := c.targets[url]; ok {
-		log.Printf("Attempt to add already added target %s\n", url)
+func (c *Checker) addTarget(t *target) {
+	if _, ok := c.targets[t.name]; ok {
+		c.slogger.Errorf("Attempt to add already added target %s\n", t.name)
 		return
 	}
-	log.Printf("Adding target %s", url)
-	t := &target{
-		url:  url,
-		done: make(chan struct{}),
-	}
-	c.targets[url] = t
-	go c.newTargetLoop(url, t.done)
+	c.slogger.Infof("Adding target %s", t.name)
+	c.targets[t.name] = t
+	go c.newTargetLoop(t)
 }
 
 func (c *Checker) deleteTarget(url string) {
 	t, ok := c.targets[url]
 	if !ok {
-		log.Printf("Attempt to delete unregistered target %s\n", url)
+		c.slogger.Errorf("Attempt to delete unregistered target %s\n", url)
 		return
 	}
 
@@ -215,9 +216,9 @@ func (c *Checker) deleteTarget(url string) {
 }
 
 func (c *Checker) update(r *report) {
-	t, ok := c.targets[r.url]
+	t, ok := c.targets[r.name]
 	if !ok {
-		log.Printf("Received report from unregistered target %s\n", r.url)
+		c.slogger.Warnf("Received report from unregistered target %s", r.name)
 		return
 	}
 	if t.state == 0 {
@@ -246,7 +247,7 @@ func (c *Checker) update(r *report) {
 	}
 
 	c.updateHealthStatus()
-	log.Printf("Report from %s: s:%d, h:%t, err:%v\n", t.url, t.state, t.healthy, r.err)
+	c.slogger.Infof("Report from %s: s:%d, h:%t, err:%v", t.url, t.state, t.healthy, r.err)
 	if c.updates != nil {
 		select {
 		case c.updates <- struct{}{}:
@@ -263,8 +264,8 @@ func (c *Checker) run() {
 Loop:
 	for {
 		select {
-		case url := <-c.added:
-			c.addTarget(url)
+		case target := <-c.added:
+			c.addTarget(target)
 		case url := <-c.deleted:
 			c.deleteTarget(url)
 		case r := <-c.reports:
@@ -272,7 +273,7 @@ Loop:
 		case a := <-c.accessors:
 			a(c)
 		case <-c.done:
-			log.Println("Stopping all target loops")
+			c.slogger.Info("Stopping all target loops")
 			for _, c := range c.targets {
 				close(c.done)
 			}
@@ -281,15 +282,14 @@ Loop:
 	}
 }
 
-func (c *Checker) newTargetLoop(url string, done <-chan struct{}) {
+func (c *Checker) newTargetLoop(t *target) {
 	ticker := time.NewTicker(c.Interval)
 	defer ticker.Stop()
 
-	checkURL := fmt.Sprintf("%s%s", url, "/healthz")
 Loop:
 	for {
 		ts := time.Now()
-		resp, err := c.client.Get(checkURL)
+		resp, err := c.client.Get(t.url)
 		if err == nil {
 			resp.Body.Close() // TODO: Do we need to drain the body before closing?
 			if resp.StatusCode != http.StatusOK {
@@ -298,13 +298,13 @@ Loop:
 		}
 
 		c.reports <- &report{
-			url: url,
-			ts:  ts,
-			err: err,
+			name: t.name,
+			ts:   ts,
+			err:  err,
 		}
 
 		select {
-		case <-done:
+		case <-t.done:
 			break Loop
 		case <-ticker.C:
 		}
@@ -312,9 +312,9 @@ Loop:
 }
 
 type report struct {
-	url string
-	ts  time.Time
-	err error
+	name string
+	ts   time.Time
+	err  error
 }
 
 func calcHealthStatus(total, healthy, threshold int) bool {

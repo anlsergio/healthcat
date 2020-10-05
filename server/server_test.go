@@ -29,8 +29,8 @@ func (r testReporter) Ready() bool {
 	return r.ready
 }
 
-func (r testReporter) Add(url string)    {}
-func (r testReporter) Delete(url string) {}
+func (r testReporter) Add(name, url string) {}
+func (r testReporter) Delete(url string)    {}
 
 var Logger *zap.Logger
 
