@@ -1,4 +1,4 @@
-MODULE_NAME=$$(awk '/module/{ print $2 }' ./go.mod)
+MODULE_NAME := $$(awk '/module/ { print $$2; }' go.mod)
 BINARY_NAME := chc
 VERSION_VAR := $(MODULE_NAME)/version.Version
 GIT_VAR := $(MODULE_NAME)/version.GitCommit
@@ -19,7 +19,7 @@ DOCKER_BUILD_FLAGS := --build-arg MODULE_NAME="$(MODULE_NAME)"
 
 all: build
 
-build: *.go 
+build: *.go
 	go build -v -o build/bin/$(ARCH)/$(BINARY_NAME) $(GOBUILD_VERSION_ARGS)
 
 run: build
@@ -31,11 +31,26 @@ install: test
 	go install -v
 
 docker:
+	@echo "DOCKER_BUILD_FLAGS=$(DOCKER_BUILD_FLAGS)"
 	docker build -t $(IMAGE_NAME):$(GIT_HASH) $(DOCKER_BUILD_FLAGS) .
 
 docker-dev: docker
 	docker tag $(IMAGE_NAME):$(GIT_HASH) $(IMAGE_NAME):dev
 	docker push $(IMAGE_NAME):dev
+
+# ensure:
+#	 1. kind cluster is up and running
+#  2. chc namespace exists
+docker-kind: docker
+	kind load docker-image $(IMAGE_NAME):$(GIT_HASH) --name nginx
+
+	helm upgrade \
+	chc helm/ \
+	--install \
+	--namespace=chc \
+	-f helm_vars/wpng/dev/values.yaml \
+	--set image.tag=$(GIT_HASH) \
+	--debug
 
 release: check test docker
 	docker push $(IMAGE_NAME):$(GIT_HASH)

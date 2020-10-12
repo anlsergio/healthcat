@@ -10,3 +10,4 @@ chc helm/ \
 -f helm_vars/wpng/dev/values.yaml \
 --set image.tag=dev \
 --debug --dry-run
+```
