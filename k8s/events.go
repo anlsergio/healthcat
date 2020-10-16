@@ -96,8 +96,14 @@ func (e *EventSource) addService(svc *v1.Service) {
 	}
 
 	port := svc.Spec.Ports[0].Port
-	e.slogger.Infof("Added service: %#v", svc.Name)
-	e.Registry.Add(svc.Name, fmt.Sprintf("%s://%s:%d%s", schema, svc.Name, port, path))
+	targetName := fmt.Sprintf("%s.%s", svc.Name, svc.Namespace)
+	e.slogger.Infof("Added service: %s", targetName)
+	e.Registry.Add(targetName,
+		fmt.Sprintf("%s://%s:%d%s",
+			schema,
+			targetName,
+			port,
+			path))
 }
 
 // deleteService deletes a cluster service

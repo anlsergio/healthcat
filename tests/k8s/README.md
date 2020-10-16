@@ -17,19 +17,31 @@ $ cd test/k8s
 $ kind get clusters
 ```
 
-Create a cluster called `nginx` if missing.
+Create a cluster called `nginx` if missing using the `Kind` config files.
+
+There are two Kind config files:
+1. multi-node cluster - kind/Cluster-multi-nodes-1.17
+   One control plane and 2 worker nodes.
+2. single-node cluster - kind/Cluster-single-node-1.17
+   Control plane node only
+
+The single node cluster is faster to spin.
+
+Create the cluster that suit your needs. Keep the name `nginx`.
+It might be used elsewhere.
 ```
 $ cd test/k8s
+
+# create a single node cluster
 $ kind create cluster --name nginx \
---config kind/Cluster-multi-nodes-1.17
+> --config kind/Cluster-single-node-1.17
 Creating cluster "nginx" ...
  ✓ Ensuring node image (kindest/node:v1.17.11) 🖼
- ✓ Preparing nodes 📦 📦 📦
+ ✓ Preparing nodes 📦
  ✓ Writing configuration 📜
  ✓ Starting control-plane 🕹️
  ✓ Installing CNI 🔌
  ✓ Installing StorageClass 💾
- ✓ Joining worker nodes 🚜
 Set kubectl context to "kind-nginx"
 You can now use your cluster with:
 
@@ -54,6 +66,12 @@ kubectl create ns chc
 kubectl create ns nginx
 ```
 
+Create the ConfigMap with additional Nginx config that includes
+the liveness probe.
+```
+kubectl -n nginx apply -f configmap.yaml
+```
+
 ### Deploy CHC
 Build and deploy using the make command.
 ```
@@ -65,9 +83,30 @@ $ make docker-kind
 
 Modify `POD_TOTAL` var if necessary, and then run `./build-pods.sh` script. The resulting k8s manifest will contain the Pods and Services required for the test.
 
+An example. Create 10 tests Pods.
+```
+$ ./build-pods.sh 10
+ SLEEP_TIME:
+ POD_TOTAL: 10
+ IS_HEALTH: notok
+ POD_TEST_FILE: pods-test.yaml
+ NOTOK_THRESHOLD: 1
+Removing file pods-test.yaml ...
+Creating Pod# 1
+Creating Pod# 2
+Creating Pod# 3
+Creating Pod# 4
+Creating Pod# 5
+Creating Pod# 6
+Creating Pod# 7
+Creating Pod# 8
+Creating Pod# 9
+Creating Pod# 10
+```
+
 Apply the manifest. Always use a temporary namespace to be able to clean up tests resources easily.
 ```
-$ kubectl -n nginx apply -f pods-test.yaml
+$ kubectl apply -n nginx -f pods-test.yaml
 pod/nginx-1 created
 service/nginx-1 created
 pod/nginx-2 created
@@ -88,167 +127,96 @@ pod/nginx-9 created
 service/nginx-9 created
 pod/nginx-10 created
 service/nginx-10 created
-pod/nginx-11 created
-service/nginx-11 created
-pod/nginx-12 created
-service/nginx-12 created
-pod/nginx-13 created
-service/nginx-13 created
-pod/nginx-14 created
-service/nginx-14 created
-pod/nginx-15 created
-service/nginx-15 created
-pod/nginx-16 created
-service/nginx-16 created
-pod/nginx-17 created
-service/nginx-17 created
-pod/nginx-18 created
-service/nginx-18 created
-pod/nginx-19 created
-service/nginx-19 created
-pod/nginx-20 created
-service/nginx-20 created
 ```
 
 Check the number of Pods with and without a `/healthz` endpoint
 ```
 $ kubectl -n nginx get pods -l health=ok
 NAME       READY   STATUS    RESTARTS   AGE
-nginx-1    1/1     Running   0          106s
-nginx-10   1/1     Running   0          99s
-nginx-11   1/1     Running   0          99s
-nginx-12   1/1     Running   0          98s
-nginx-13   1/1     Running   0          97s
-nginx-14   1/1     Running   0          97s
-nginx-15   1/1     Running   0          96s
-nginx-16   1/1     Running   0          95s
-nginx-17   1/1     Running   0          94s
-nginx-18   1/1     Running   0          92s
-nginx-19   1/1     Running   0          91s
-nginx-2    1/1     Running   0          106s
-nginx-20   1/1     Running   0          90s
-nginx-5    1/1     Running   0          103s
-nginx-6    1/1     Running   0          102s
-nginx-8    1/1     Running   0          101s
-nginx-9    1/1     Running   0          100s
+nginx-1    1/1     Running   0          30s
+nginx-10   1/1     Running   0          30s
+nginx-2    1/1     Running   0          30s
+nginx-3    1/1     Running   0          30s
+nginx-4    1/1     Running   0          30s
+nginx-5    1/1     Running   0          30s
+nginx-6    1/1     Running   0          30s
+nginx-7    1/1     Running   0          30s
+nginx-8    1/1     Running   0          30s
+nginx-9    1/1     Running   0          30s
 
 $ kubectl -n nginx get pods -l health=notok
-NAME      READY   STATUS    RESTARTS   AGE
-nginx-3   1/1     Running   0          110s
-nginx-4   1/1     Running   0          109s
-nginx-7   1/1     Running   0          106s
+No resources found in nginx namespace.
 ```
-
 
 Start the port proxy tunnel
 ```
- $ kubectl -n chc port-forward chc-6f9bcdc45f-hn7m7  8080:80
+# get a chc Pod name
+$ kubectl -n chc get pods
+$
+$ kubectl -n chc port-forward chc-698cff547-v2zr6 8080:80
 Forwarding from 127.0.0.1:8080 -> 80
 Forwarding from [::1]:8080 -> 80
 ```
 
 Check the `/services` and `/status` endpoints
 ```
- curl http://localhost:8080/services | jq .
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100   794  100   794    0     0   2255      0 --:--:-- --:--:-- --:--:--  2262
-{
-  "cluster": {
-    "name": "wpngdev",
-    "healthy": false,
-    "total": 20,
-    "failed": 20
-  },
-  "services": [
-    {
-      "name": "nginx-2",
-      "healthy": false
-    },
-    {
-      "name": "nginx-4",
-      "healthy": false
-    },
-    {
-      "name": "nginx-6",
-      "healthy": false
-    },
-    {
-      "name": "nginx-8",
-      "healthy": false
-    },
-    {
-      "name": "nginx-13",
-      "healthy": false
-    },
-    {
-      "name": "nginx-5",
-      "healthy": false
-    },
-    {
-      "name": "nginx-10",
-      "healthy": false
-    },
-    {
-      "name": "nginx-14",
-      "healthy": false
-    },
-    {
-      "name": "nginx-18",
-      "healthy": false
-    },
-    {
-      "name": "nginx-1",
-      "healthy": false
-    },
-    {
-      "name": "nginx-3",
-      "healthy": false
-    },
-    {
-      "name": "nginx-7",
-      "healthy": false
-    },
-    {
-      "name": "nginx-9",
-      "healthy": false
-    },
-    {
-      "name": "nginx-11",
-      "healthy": false
-    },
-    {
-      "name": "nginx-12",
-      "healthy": false
-    },
-    {
-      "name": "nginx-20",
-      "healthy": false
-    },
-    {
-      "name": "nginx-15",
-      "healthy": false
-    },
-    {
-      "name": "nginx-16",
-      "healthy": false
-    },
-    {
-      "name": "nginx-17",
-      "healthy": false
-    },
-    {
-      "name": "nginx-19",
-      "healthy": false
-    }
-  ]
-}
+ curl -s http://localhost:8080/services | jq .
+ {
+   "cluster": {
+     "name": "wpngdev",
+     "healthy": true,
+     "total": 10,
+     "failed": 0
+   },
+   "services": [
+     {
+       "name": "nginx-9",
+       "healthy": true
+     },
+     {
+       "name": "nginx-1",
+       "healthy": true
+     },
+     {
+       "name": "nginx-4",
+       "healthy": true
+     },
+     {
+       "name": "nginx-8",
+       "healthy": true
+     },
+     {
+       "name": "nginx-6",
+       "healthy": true
+     },
+     {
+       "name": "nginx-7",
+       "healthy": true
+     },
+     {
+       "name": "nginx-10",
+       "healthy": true
+     },
+     {
+       "name": "nginx-2",
+       "healthy": true
+     },
+     {
+       "name": "nginx-3",
+       "healthy": true
+     },
+     {
+       "name": "nginx-5",
+       "healthy": true
+     }
+   ]
+ }
 ```
 
 Get the `/status`
 ```
 $ curl http://localhost:8080/status
-Failure
+OK
 ```
 
 ### Cleanup
