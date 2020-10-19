@@ -96,7 +96,7 @@ func (e *EventSource) addService(svc *v1.Service) {
 	}
 
 	port := svc.Spec.Ports[0].Port
-	targetName := fmt.Sprintf("%s.%s", svc.Name, svc.Namespace)
+	targetName := makeTargetName(svc)
 	e.slogger.Infof("Added service: %s", targetName)
 	e.Registry.Add(targetName,
 		fmt.Sprintf("%s://%s:%d%s",
@@ -108,7 +108,7 @@ func (e *EventSource) addService(svc *v1.Service) {
 
 // deleteService deletes a cluster service
 func (e *EventSource) deleteService(svc *v1.Service) {
-	e.Registry.Delete(svc.Name)
+	e.Registry.Delete(makeTargetName(svc))
 }
 
 // matchFilters is a filter
@@ -126,4 +126,8 @@ func matchFilters(namespace string, included, excluded []string) bool {
 	}
 
 	return len(included) == 0
+}
+
+func makeTargetName(svc *v1.Service) string {
+	return fmt.Sprintf("%s.%s", svc.Name, svc.Namespace)
 }
