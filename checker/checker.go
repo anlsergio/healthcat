@@ -188,7 +188,7 @@ func (c *Checker) Delete(name string) {
 
 func (c *Checker) addTarget(t *target) {
 	if _, ok := c.targets[t.name]; ok {
-		c.slogger.Errorf("Attempt to add already added target %s\n", t.name)
+		c.slogger.Errorf("Attempt to add already added target %s", t.name)
 		return
 	}
 	c.slogger.Infof("Adding target %s", t.name)
@@ -199,12 +199,13 @@ func (c *Checker) addTarget(t *target) {
 func (c *Checker) deleteTarget(url string) {
 	t, ok := c.targets[url]
 	if !ok {
-		c.slogger.Errorf("Attempt to delete unregistered target %s\n", url)
+		c.slogger.Errorf("Attempt to delete unregistered target %s", url)
 		return
 	}
 
 	close(t.done)
 	delete(c.targets, url)
+	c.slogger.Infof("Removed target %s", url)
 
 	if t.state != 0 {
 		c.activeCount--

@@ -12,7 +12,7 @@ CHC should be able to detect both types of Pods - with and without health check,
 For more details see https://kind.sigs.k8s.io/docs/user/quick-start/
 
 Check kind clusters
-```
+```bash
 $ cd test/k8s
 $ kind get clusters
 ```
@@ -29,7 +29,7 @@ The single node cluster is faster to spin.
 
 Create the cluster that suit your needs. Keep the name `nginx`.
 It might be used elsewhere.
-```
+```bash
 $ cd test/k8s
 
 # create a single node cluster
@@ -51,7 +51,7 @@ Have a nice day! 👋
 ```
 
 Inpsect `kind-nginx` context
-```
+```bash
 kubectl cluster-info --context kind-nginx
 Kubernetes master is running at https://127.0.0.1:54687
 KubeDNS is running at https://127.0.0.1:54687/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
@@ -61,20 +61,20 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 
 ### Create namespaces
 For CHC and Nginx tests pods
-```
+```bash
 kubectl create ns chc
 kubectl create ns nginx
 ```
 
 Create the ConfigMap with additional Nginx config that includes
 the liveness probe.
-```
+```bash
 kubectl -n nginx apply -f configmap.yaml
 ```
 
 ### Deploy CHC
 Build and deploy using the make command.
-```
+```bash
 $ cd do-k8s-cluster-health-check
 $ make docker-kind
 ```
@@ -84,7 +84,7 @@ $ make docker-kind
 Modify `POD_TOTAL` var if necessary, and then run `./build-pods.sh` script. The resulting k8s manifest will contain the Pods and Services required for the test.
 
 An example. Create 10 tests Pods.
-```
+```bash
 $ ./build-pods.sh 10
  SLEEP_TIME:
  POD_TOTAL: 10
@@ -105,7 +105,7 @@ Creating Pod# 10
 ```
 
 Apply the manifest. Always use a temporary namespace to be able to clean up tests resources easily.
-```
+```bash
 $ kubectl apply -n nginx -f pods-test.yaml
 pod/nginx-1 created
 service/nginx-1 created
@@ -130,7 +130,7 @@ service/nginx-10 created
 ```
 
 Check the number of Pods with and without a `/healthz` endpoint
-```
+```bash
 $ kubectl -n nginx get pods -l health=ok
 NAME       READY   STATUS    RESTARTS   AGE
 nginx-1    1/1     Running   0          30s
@@ -149,17 +149,15 @@ No resources found in nginx namespace.
 ```
 
 Start the port proxy tunnel
-```
-# get a chc Pod name
-$ kubectl -n chc get pods
-$
-$ kubectl -n chc port-forward chc-698cff547-v2zr6 8080:80
+```bash
+$ kubectl -n chc \
+  port-forward $(kubectl get pods -n chc -l app=chc -o=jsonpath='{.items[0].metadata.name}') 8080:80
 Forwarding from 127.0.0.1:8080 -> 80
 Forwarding from [::1]:8080 -> 80
 ```
 
 Check the `/services` and `/status` endpoints
-```
+```bash
  curl -s http://localhost:8080/services | jq .
  {
    "cluster": {
@@ -214,12 +212,12 @@ Check the `/services` and `/status` endpoints
 ```
 
 Get the `/status`
-```
+```bash
 $ curl http://localhost:8080/status
 OK
 ```
 
 ### Cleanup
-```
+```bash
 kind delete cluster --name nginx
 ```
