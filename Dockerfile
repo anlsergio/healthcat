@@ -1,6 +1,12 @@
 FROM golang:1.15.2-alpine3.12 as build
-COPY . /go/src/github.com/wiley/do-k8s-cluster-health-check/
+RUN apk add git
+
 WORKDIR /go/src/github.com/wiley/do-k8s-cluster-health-check/
+
+COPY go.mod .
+COPY go.sum .
+
+RUN go mod download -x
 
 # If MODULE_NAME is not provided by the build process 
 # version settings will not be set.
@@ -11,7 +17,7 @@ ENV CGO_ENABLED ${CGO_ENABLED:-0}
 #Linux only
 ENV GOOS ${GOOS:-linux}
 
-RUN apk add git
+COPY . .
 
 RUN REPO_VERSION=$(git describe --abbrev=0 --tags) \
     BUILD_DATE=$(date +%Y-%m-%d-%H:%M) \
