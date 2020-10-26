@@ -16,3 +16,6 @@ chc
 
 # IDE
 .vscode
+
+# Skaffold
+skaffold.yaml

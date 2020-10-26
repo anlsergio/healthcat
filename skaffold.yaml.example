@@ -1,0 +1,28 @@
+apiVersion: skaffold/v2beta8
+kind: Config
+
+build:
+  artifacts:
+  - image: chc
+
+deploy:
+  helm:
+    releases:
+    - name: chc
+      namespace: chc
+      createNamespace: true
+      chartPath: helm
+      artifactOverrides:
+        imageOverride: chc
+      overrides:
+        args:
+        - cluster-id=test
+        - port=80
+        - namespaces=nginx
+      
+portForward:
+- resourceType: Service
+  resourceName: chc
+  namespace: chc
+  port: 80
+  localPort: 8080
