@@ -47,8 +47,6 @@ type Checker struct {
 	activeCount  int
 	healthyCount int
 	healthy      bool
-	added        chan *target
-	deleted      chan string
 	reports      chan *report
 	accessors    chan accessor
 	ready        bool
@@ -83,8 +81,6 @@ func (c *Checker) Run() error {
 	c.slogger = c.Logger.Sugar()
 	c.targets = make(map[string]*target)
 	c.reports = make(chan *report)
-	c.added = make(chan *target)
-	c.deleted = make(chan string)
 	c.accessors = make(chan accessor)
 	c.client = &http.Client{
 		Timeout: calcTimeout(c.Interval),
@@ -174,7 +170,9 @@ func (c *Checker) Add(name string, url string) {
 		c.slogger.Errorf("Invalid service definition")
 		return
 	}
-	c.added <- &target{name: name, url: url, done: make(chan struct{})}
+	c.accessors <- func(c *Checker) {
+		c.addTarget(&target{name: name, url: url, done: make(chan struct{})})
+	}
 }
 
 // Delete removes the given service from the check list
@@ -183,7 +181,9 @@ func (c *Checker) Delete(name string) {
 		c.slogger.Error("Attempt to remove empty target")
 		return
 	}
-	c.deleted <- name
+	c.accessors <- func(c *Checker) {
+		c.deleteTarget(name)
+	}
 }
 
 func (c *Checker) addTarget(t *target) {
@@ -265,10 +265,6 @@ func (c *Checker) run() {
 Loop:
 	for {
 		select {
-		case target := <-c.added:
-			c.addTarget(target)
-		case url := <-c.deleted:
-			c.deleteTarget(url)
 		case r := <-c.reports:
 			c.update(r)
 		case a := <-c.accessors:
