@@ -11,10 +11,11 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// ServiceRegistry is TOOD
+// ServiceRegistry is TODO
 //
 type ServiceRegistry interface {
 	Add(name, url string)
+	Update(name, url string)
 	Delete(name string)
 }
 
@@ -37,7 +38,6 @@ func (e *EventSource) Start() error {
 	if err != nil {
 		return err
 	}
-
 	e.clientset, err = kubernetes.NewForConfig(config)
 
 	if err != nil {
@@ -67,24 +67,14 @@ func (e *EventSource) Run() {
 		case watch.Deleted:
 			e.deleteService(event.Object.(*v1.Service))
 		case watch.Modified:
-			svc := event.Object.(*v1.Service)
-			// TODO: This may not work as the commands may not come in order.
-			// Consider using a single command channel in checker or
-			// introduce a separate command for updating service
-			e.deleteService(svc)
-			e.addService(svc)
+			e.updateService(event.Object.(*v1.Service))
 		default:
 			e.slogger.Info("Ignoring unsupported event: %s", event.Type)
 		}
 	}
 }
 
-// addService TODO
-func (e *EventSource) addService(svc *v1.Service) {
-	if !matchFilters(svc.Namespace, e.Namespaces, e.ExcludedNamespaces) {
-		e.slogger.Debugf("Ignoring service %q in excluded namespace %q", svc.Name, svc.Namespace)
-		return
-	}
+func getServiceAttributes(svc *v1.Service) (name, url string) {
 	schema := svc.ObjectMeta.Annotations["chc/schema"]
 	if schema == "" {
 		schema = "http"
@@ -97,18 +87,34 @@ func (e *EventSource) addService(svc *v1.Service) {
 
 	port := svc.Spec.Ports[0].Port
 	targetName := makeTargetName(svc)
+	return targetName, fmt.Sprintf("%s://%s:%d%s", schema, targetName, port, path)
+}
+
+// addService TODO
+func (e *EventSource) addService(svc *v1.Service) {
+	if !matchFilters(svc.Namespace, e.Namespaces, e.ExcludedNamespaces) {
+		e.slogger.Debugf("Ignoring new service %q in excluded namespace %q", svc.Name, svc.Namespace)
+		return
+	}
+	targetName, url := getServiceAttributes(svc)
 	e.slogger.Infof("Added service: %s", targetName)
-	e.Registry.Add(targetName,
-		fmt.Sprintf("%s://%s:%d%s",
-			schema,
-			targetName,
-			port,
-			path))
+	e.Registry.Add(targetName, url)
 }
 
 // deleteService deletes a cluster service
 func (e *EventSource) deleteService(svc *v1.Service) {
 	e.Registry.Delete(makeTargetName(svc))
+}
+
+// updateService updates an already registered service
+func (e *EventSource) updateService(svc *v1.Service) {
+	if !matchFilters(svc.Namespace, e.Namespaces, e.ExcludedNamespaces) {
+		e.slogger.Debugf("Ignoring updated service %q in excluded namespace %q", svc.Name, svc.Namespace)
+		return
+	}
+	targetName, url := getServiceAttributes(svc)
+	e.slogger.Infof("Updated service: %s", targetName)
+	e.Registry.Update(targetName, url)
 }
 
 // matchFilters is a filter

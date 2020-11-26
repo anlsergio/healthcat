@@ -167,10 +167,22 @@ func (c *Checker) Ready() bool {
 // Add adds the given service to the check list
 func (c *Checker) Add(name string, url string) {
 	if name == "" || url == "" {
-		c.slogger.Errorf("Invalid service definition")
+		c.slogger.Error("Invalid service definition")
 		return
 	}
 	c.accessors <- func(c *Checker) {
+		c.addTarget(&target{name: name, url: url, done: make(chan struct{})})
+	}
+}
+
+// Update updates an already registered service
+func (c *Checker) Update(name string, url string) {
+	if name == "" || url == "" {
+		c.slogger.Error("Invalid service definition")
+		return
+	}
+	c.accessors <- func(c *Checker) {
+		c.deleteTarget(name)
 		c.addTarget(&target{name: name, url: url, done: make(chan struct{})})
 	}
 }
