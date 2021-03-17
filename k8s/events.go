@@ -61,7 +61,6 @@ func (e *EventSource) Run() {
 		switch event.Type {
 		case watch.Error:
 			e.slogger.Errorf("Error listening to service events: %v", event.Object)
-			break
 		case watch.Added:
 			e.addService(event.Object.(*v1.Service))
 		case watch.Deleted:
