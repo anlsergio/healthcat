@@ -302,7 +302,7 @@ Loop:
 		if err == nil {
 			resp.Body.Close() // TODO: Do we need to drain the body before closing?
 			if resp.StatusCode != http.StatusOK {
-				err = fmt.Errorf("Status %d", resp.StatusCode)
+				err = fmt.Errorf("status %d", resp.StatusCode)
 			}
 		}
 
