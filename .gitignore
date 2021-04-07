@@ -19,3 +19,6 @@ chc
 
 # Skaffold
 skaffold.yaml
+
+# Mac finder
+.DS_Store

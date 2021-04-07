@@ -1,0 +1,86 @@
+# Default values for helm.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: 715824223074.dkr.ecr.us-east-1.amazonaws.com/chc
+  pullPolicy: IfNotPresent
+  tag: eefe09e
+
+args:
+  - cluster-id=chc-blue
+  - port=80
+  - namespaces=chc-blue
+  - log-preset=dev
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name:
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  # annotations:
+  #   kubernetes.io/ingress.class: nginx-internal
+  #   external-dns.alpha.kubernetes.io/alias: 'true'
+  # hosts:
+  #   - host: chc-blue.nonprod.edpub.wiley.com
+  #     paths:
+  #       - /
+  # tls:
+  #   - secretName: wildcard-nonprod-edpub-wiley-com-crt-secret
+  #     hosts:
+  #       - chc-blue.nonprod.edpub.wiley.com
+
+
+
+istio:
+  gateway:
+    enabled: true
+    ingress:
+      hosts:
+        - host: chc-blue.nonprod.edpub.wiley.com
+      tls:
+        credentialName: wildcard-nonprod-edpub-wiley-com-crt-secret
+    mesh:
+      hosts:
+        - host: chc-blue.nonprod.edpub.wiley.com
+
+resources:
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

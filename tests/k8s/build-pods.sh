@@ -6,6 +6,9 @@ POD_TOTAL=${1:-5}
 IS_HEALTH=${2:-"notok"}
 POD_TEST_FILE="pods-test.yaml"
 
+
+IS_TOPOLOGY="ok"
+
 # The threshold for notok Pods
 NOTOK_THRESHOLD=$((POD_TOTAL/9))
 
@@ -17,23 +20,6 @@ cat << END
   POD_TEST_FILE: $POD_TEST_FILE
   NOTOK_THRESHOLD: $NOTOK_THRESHOLD
 END
-
-# Add k8s Volume to the Pod spec
-function addVolume() {
-cat << END
-    volumeMounts:
-        - name: config-vol
-          mountPath: /etc/nginx/conf.d/
-
-  volumes:
-    - name: config-vol
-      configMap:
-        name: nginx
-        items:
-          - key: default.conf
-            path: default.conf
-END
-}
 
 function addPod() {
 cat << END
@@ -53,6 +39,35 @@ spec:
     - name: http
       containerPort: 80
 
+END
+}
+
+function addTpoology() {
+cat << END
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          group: nginx-chc
+END
+}
+
+# Add k8s Volume to the Pod spec
+function addVolume() {
+cat << END
+    volumeMounts:
+        - name: config-vol
+          mountPath: /etc/nginx/conf.d/
+
+  volumes:
+    - name: config-vol
+      configMap:
+        name: nginx
+        items:
+          - key: default.conf
+            path: default.conf
 END
 }
 
@@ -106,6 +121,10 @@ do
     addPod
     if [[ "${IS_HEALTH}" == "ok" ]]; then
       addVolume
+    fi
+
+    if [[ "${IS_TOPOLOGY}" == "ok" ]]; then
+      addTpoology
     fi
 
     addLine

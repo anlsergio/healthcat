@@ -44,7 +44,6 @@ spec:
     {{- end }}
   gateways:
     - {{ include "helm.fullname" . }}
-    - mesh
   http:
   - route:
     - destination:
