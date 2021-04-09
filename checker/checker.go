@@ -4,13 +4,18 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"os"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
 	"go.uber.org/zap"
 )
 
+// incorporate http_proxy to quickly run the client from CLI
+// https://stackoverflow.com/questions/51845690/how-to-program-go-to-use-a-proxy-when-using-a-custom-transport
 type Cluster struct {
 	Name    string `json:"name"`    // The cluster name (ID)
 	Healthy bool   `json:"healthy"` // Health status
@@ -43,6 +48,7 @@ type Checker struct {
 
 	slogger      *zap.SugaredLogger
 	client       *http.Client
+	proxyURL     *url.URL // proxy for local development
 	targets      map[string]*target
 	activeCount  int
 	healthyCount int
@@ -70,6 +76,33 @@ type target struct {
 	state int64
 }
 
+// checkProxy
+func (c *Checker) checkProxy() *url.URL {
+	//if request has '.svc' send the requewt to a proxy
+	hcHttpProxy, ok := os.LookupEnv("HC_HTTP_PROXY")
+	if !ok {
+		c.slogger.Debugf("Proxy HTTP not provided")
+		return nil
+	}
+
+	proxyURL, err := url.Parse(hcHttpProxy)
+	if err != nil {
+		c.slogger.Debugf("Proxy HTTP %s error %v. Continuing without it.\n", hcHttpProxy, err)
+		return nil
+	}
+
+	return proxyURL
+}
+
+func (c *Checker) setProxy(r *http.Request) (*url.URL, error) {
+	if strings.Contains(r.URL.Host, ".svc") {
+		c.slogger.Debugf("Proxy set to %s\n", c.proxyURL)
+		return c.proxyURL, nil
+	} else {
+		return nil, nil
+	}
+}
+
 //Run starts the checker
 func (c *Checker) Run() error {
 	if err := c.validate(); err != nil {
@@ -86,8 +119,15 @@ func (c *Checker) Run() error {
 	c.added = make(chan *target)
 	c.deleted = make(chan string)
 	c.accessors = make(chan accessor)
+	c.proxyURL = c.checkProxy()
+
+	transport := &http.Transport{
+		Proxy: c.setProxy,
+	}
+
 	c.client = &http.Client{
-		Timeout: calcTimeout(c.Interval),
+		Transport: transport,
+		Timeout:   calcTimeout(c.Interval),
 	}
 	c.healthy = true
 	c.ready = true

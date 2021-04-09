@@ -2,6 +2,9 @@ package k8s
 
 import (
 	"fmt"
+	"os"
+	"os/user"
+	"path/filepath"
 
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -9,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 // ServiceRegistry is TOOD
@@ -30,12 +34,24 @@ type EventSource struct {
 }
 
 // Start starts the loop
+// https://learning.oreilly.com/library/view/programming-kubernetes/9781492047094/ch03.html#ch_client-go
+// TODO fix clientset logic
 func (e *EventSource) Start() error {
 	e.slogger = e.Logger.Sugar()
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		return err
+		// fallback to kubeconfig
+		usr, _ := user.Current()
+		kubeconfig := filepath.Join(usr.HomeDir, ".kube", "config")
+		if envvar := os.Getenv("KUBECONFIG"); len(envvar) > 0 {
+			kubeconfig = envvar
+		}
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			fmt.Printf("The kubeconfig cannot be loaded: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	e.clientset, err = kubernetes.NewForConfig(config)
@@ -82,7 +98,7 @@ func (e *EventSource) Run() {
 // addService TODO
 func (e *EventSource) addService(svc *v1.Service) {
 	if !matchFilters(svc.Namespace, e.Namespaces, e.ExcludedNamespaces) {
-		e.slogger.Debugf("Ignoring service %q in excluded namespace %q", svc.Name, svc.Namespace)
+		// e.slogger.Debugf("Ignoring service %q in excluded namespace %q", svc.Name, svc.Namespace)
 		return
 	}
 	schema := svc.ObjectMeta.Annotations["chc/schema"]
@@ -99,7 +115,7 @@ func (e *EventSource) addService(svc *v1.Service) {
 	targetName := makeTargetName(svc)
 	e.slogger.Infof("Added service: %s", targetName)
 	e.Registry.Add(targetName,
-		fmt.Sprintf("%s://%s:%d%s",
+		fmt.Sprintf("%s://%s.svc:%d%s",
 			schema,
 			targetName,
 			port,
