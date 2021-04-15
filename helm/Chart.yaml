@@ -1,6 +1,6 @@
 apiVersion: v2
 name: chc
-description: Cluster Health Check monitors the health status of deployed services, and provides k8s cluster status.
+description: Health Check monitors the health status of deployed services, and provides k8s cluster status.
 maintainers:
   - name: Anderson L. Sergio
     email: asergio@wiley.com
@@ -23,7 +23,7 @@ type: application
 
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
-version: 0.1.2
+version: 0.1.3
 
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application.

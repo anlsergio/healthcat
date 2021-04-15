@@ -88,6 +88,10 @@ func router(sr StateReporter, log *zap.Logger) http.Handler {
 		io.WriteString(w, "OK\n")
 	})
 
+	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "Daj Daj\n")
+	})
+
 	r.Get("/healthz/ready", func(w http.ResponseWriter, r *http.Request) {
 		if sr.Ready() {
 			io.WriteString(w, "OK\n")

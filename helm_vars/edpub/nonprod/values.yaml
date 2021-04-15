@@ -5,19 +5,19 @@
 replicaCount: 1
 
 image:
-  repository: 681504496077.dkr.ecr.us-east-1.amazonaws.com/chc
-  pullPolicy: IfNotPresent
-  tag:
+  repository: 715824223074.dkr.ecr.us-east-1.amazonaws.com/healthcat
+  pullPolicy: Always
+  tag: 
 
 args:
-  - cluster-id=wpngdev
+  - cluster-id=catdev
   - port=80
   - namespaces=nginx
   - log-preset=prod
 
 imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
+nameOverride: "healthcat"
+fullnameOverride: "healthcat"
 
 serviceAccount:
   # Specifies whether a service account should be created
@@ -43,21 +43,33 @@ service:
   type: ClusterIP
   port: 80
 
+
 ingress:
-  enabled: false
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: nginx-internal
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: healthcat.nonprod.edpub.wiley.com
+      paths:
+        - "/"
+  tls:
+    - secretName: wildcard-nonprod-edpub-wiley-com-crt-secret
+      hosts:
+        - healthcat.nonprod.edpub.wiley.com
 
 istio:
   gateway:
     enabled: false
     ingress:
       hosts:
-        - host: chc.dev.edpub.wiley.com
+        - host: healthcat.nonprod.edpub.wiley.com
       tls:
-        credentialName: wildcard-dev-edpub-wiley-com-crt-secret
+        credentialName: wildcard-nonprod-edpub-wiley-com-crt-secret
     mesh:
       hosts:
-        - host: chc.dev.edpub.wiley.com
-        - host: chc.svc.cluster.local
+        - host: healthcat.nonprod.edpub.wiley.com
+        - host: healthcat.svc.cluster.local
 
 resources:
   # We usually recommend not to specify default resources and to leave this as a conscious

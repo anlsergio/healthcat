@@ -2,26 +2,22 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# Cluster Id required
-clusterId: SetMe
-
 replicaCount: 1
 
 image:
-  repository: wileylabs/healthcat
-  pullPolicy: IfNotPresent
-  tag:
+  repository: localhost:5000/healthcat
+  pullPolicy: Always
+  tag: dev
 
-# see chc --help for list of arguments
-args: []
-  # - cluster-id=wpngdev
-  # - port=80
-  # - namespaces=wasdev
+args:
+  - cluster-id=catdev
+  - port=80
+  - namespaces=nginx
+  - log-preset=prod
 
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
-imageOverride: ""
 
 serviceAccount:
   # Specifies whether a service account should be created
@@ -49,16 +45,19 @@ service:
 
 ingress:
   enabled: false
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: chart-example.local
-      paths: []
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
+
+istio:
+  gateway:
+    enabled: false
+    ingress:
+      hosts:
+        - host: chc.dev.edpub.wiley.com
+      tls:
+        credentialName: wildcard-dev-edpub-wiley-com-crt-secret
+    mesh:
+      hosts:
+        - host: chc.dev.edpub.wiley.com
+        - host: chc.svc.cluster.local
 
 resources:
   # We usually recommend not to specify default resources and to leave this as a conscious
@@ -77,28 +76,3 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
-
-
-ingress:
-  enabled: false
-  annotations:
-    kubernetes.io/ingress.class: nginx-internal
-    external-dns.alpha.kubernetes.io/alias: 'true'
-  hosts:
-    - host: chc.dev.edpub.wiley.com
-  tls:
-    - secretName: wildcard-dev-edpub-wiley-com-crt-secret
-      hosts:
-        - chc.dev.edpub.wiley.com
-istio:
-  gateway:
-    enabled: false
-    ingress:
-      hosts:
-        - host: chc.dev.edpub.wiley.com
-      tls:
-        credentialName: wildcard-dev-edpub-wiley-com-crt-secret
-    mesh:
-      hosts:
-        - host: chc.dev.edpub.wiley.com
-        - host: chc.wasdev.svc.cluster.local
