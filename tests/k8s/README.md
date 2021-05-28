@@ -5,17 +5,26 @@
 
 CHC should be able to detect both types of Pods - with and without health check, and provide the corresponding status.
 
+<br />
+
 ## Test CHC
+
+Find bellow the steps needed to spin up a test environment on your local workspace.
+
+<br />
 
 ### Deploy k8s Kind cluster
 
 For more details see https://kind.sigs.k8s.io/docs/user/quick-start/
 
-Check kind clusters
+Make sure your current terminal directory is set to `./tests/k8s`.
+
+Check kind clusters:
 ```bash
-$ cd test/k8s
-$ kind get clusters
+kind get clusters
 ```
+
+<br />
 
 Create a cluster called `nginx` if missing using the `Kind` config files.
 
@@ -25,16 +34,23 @@ There are two Kind config files:
 2. single-node cluster - kind/Cluster-single-node-1.17
    Control plane node only
 
-The single node cluster is faster to spin.
+>The single node cluster is faster to spin. But you might create the cluster that best suit your needs.
 
-Create the cluster that suit your needs. Keep the name `nginx`.
-It might be used elsewhere.
+>It's recommended that you keep the name `nginx` as it might be used elsewhere.
+
+<br />
+
+Issue the following command to spin up a single node cluster:
+
 ```bash
-$ cd test/k8s
+kind create cluster --name nginx \
+  --config kind/Cluster-single-node-1.17
+```
 
-# create a single node cluster
-$ kind create cluster --name nginx \
-> --config kind/Cluster-single-node-1.17
+<br />
+
+If something similar to the following output is printed out you are good to go:
+```
 Creating cluster "nginx" ...
  ✓ Ensuring node image (kindest/node:v1.17.11) 🖼
  ✓ Preparing nodes 📦
@@ -50,42 +66,63 @@ kubectl cluster-info --context kind-nginx
 Have a nice day! 👋
 ```
 
-Inpsect `kind-nginx` context
+<br />
+
+Inspect `kind-nginx` context
 ```bash
 kubectl cluster-info --context kind-nginx
+```
+
+<br />
+
+Expected output similar to:
+```
 Kubernetes master is running at https://127.0.0.1:54687
 KubeDNS is running at https://127.0.0.1:54687/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
 
 To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 ```
 
-### Create namespaces
-For CHC and Nginx tests pods
+<br />
+
+### Prepare the runtime environment for deploying the test resources
+
+Create the necessary namespaces for CHC and Nginx tests pods:
 ```bash
-kubectl create ns chc
-kubectl create ns nginx
+kubectl create ns chc \
+  && kubectl create ns nginx
 ```
 
+<br />
+
 Create the ConfigMap with additional Nginx config that includes
-the liveness probe.
+the liveness probe:
 ```bash
 kubectl -n nginx apply -f configmap.yaml
 ```
 
+<br />
+
 ### Deploy CHC
-Build and deploy using the make command.
+
+From the root directory of the `do-k8s-cluster-health-check` (`../../`) from the current context) project, build and deploy using the make command:
 ```bash
-$ cd do-k8s-cluster-health-check
-$ make docker-kind
+make docker-kind
 ```
+
+<br />
 
 ### Create pods manifests
 
-Modify `POD_TOTAL` var if necessary, and then run `./build-pods.sh` script. The resulting k8s manifest will contain the Pods and Services required for the test.
+Modify `POD_TOTAL` var if necessary, and then run `./build-pods.sh` script from the `./tests/k8s` directory. The resulting k8s manifest will contain the Pods and Services required for the test.
 
 An example. Create 10 tests Pods.
 ```bash
-$ ./build-pods.sh 10
+./build-pods.sh 10
+```
+The output should look like:
+```
+<suppressed>
  SLEEP_TIME:
  POD_TOTAL: 10
  IS_HEALTH: notok
@@ -104,9 +141,17 @@ Creating Pod# 9
 Creating Pod# 10
 ```
 
-Apply the manifest. Always use a temporary namespace to be able to clean up tests resources easily.
+<br />
+
+Manually apply the manifest created by the `./build-pods.sh` script:
+>Always use a temporary namespace to be able to clean up tests resources easily.
+
 ```bash
-$ kubectl apply -n nginx -f pods-test.yaml
+kubectl apply -n nginx -f pods-test.yaml
+```
+
+The output should look like:
+```
 pod/nginx-1 created
 service/nginx-1 created
 pod/nginx-2 created
@@ -129,9 +174,15 @@ pod/nginx-10 created
 service/nginx-10 created
 ```
 
-Check the number of Pods with and without a `/healthz` endpoint
+<br />
+
+Check the number of Pods with a `/healthz` endpoint
 ```bash
-$ kubectl -n nginx get pods -l health=ok
+kubectl -n nginx get pods -l health=ok
+```
+
+In this example all pods are healthy:
+```
 NAME       READY   STATUS    RESTARTS   AGE
 nginx-1    1/1     Running   0          30s
 nginx-10   1/1     Running   0          30s
@@ -143,23 +194,40 @@ nginx-6    1/1     Running   0          30s
 nginx-7    1/1     Running   0          30s
 nginx-8    1/1     Running   0          30s
 nginx-9    1/1     Running   0          30s
+```
 
-$ kubectl -n nginx get pods -l health=notok
+<br />
+
+Check the number of Pods without a `/healthz` endpoint
+```bash
+kubectl -n nginx get pods -l health=notok
+```
+
+In this example the output is empty:
+```
 No resources found in nginx namespace.
 ```
 
-Start the port proxy tunnel
+<br />
+
+Start the port proxy tunnel to expose the CHC endpoint as a localhost:
 ```bash
-$ kubectl -n chc \
+kubectl -n chc \
   port-forward $(kubectl get pods -n chc -l app=chc -o=jsonpath='{.items[0].metadata.name}') 8080:80
-Forwarding from 127.0.0.1:8080 -> 80
-Forwarding from [::1]:8080 -> 80
 ```
 
-Check the `/services` and `/status` endpoints
+<br />
+
+Check the `/services` and `/status` API endpoints from CHC.
+
+Hit the `/services` endpoint in order to get the JSON body containing both the cluster and services status.
 ```bash
  curl -s http://localhost:8080/services | jq .
- {
+```
+
+The output should look similar to this:
+```json
+{
    "cluster": {
      "name": "wpngdev",
      "healthy": true,
@@ -211,13 +279,18 @@ Check the `/services` and `/status` endpoints
  }
 ```
 
-Get the `/status`
+<br />
+
+Hit the `/status` endpoint in order to get the success response "OK" of code `200`.
 ```bash
-$ curl http://localhost:8080/status
-OK
+curl http://localhost:8080/status
 ```
+
+<br />
 
 ### Cleanup
 ```bash
 kind delete cluster --name nginx
 ```
+
+[Back to the top](#testing-chc)

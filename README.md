@@ -23,8 +23,8 @@ in the project root directory.
 Set the correct image tag. Either extract it from `helm/Chart.yaml` file or
 set it manually.
 ```
-export APP_VERSION=`grep 'appVersion' helm/Chart.yaml | cut -d: -f 2 | sed 's/^[[:blank:]]*//'`
-echo "APP_VERSION: $APP_VERSION"
+export APP_VERSION=`grep 'appVersion' helm/Chart.yaml | cut -d: -f 2 | sed 's/^[[:blank:]]*//'` \
+&& echo "APP_VERSION: $APP_VERSION"
 ```
 
 Build the image first
@@ -55,13 +55,15 @@ Assumptions:
    `kubectl create ns chc`
 
 Upgrade `chc` release; Install the release if missing.
+```bash
+helm upgrade \
+   chc helm/ \
+   --install \
+   --namespace chc \
+   -f helm_vars/wpng/dev/values.yaml \
+   --debug --dry-run
 ```
-$ cd do-k8s-cluster-health-check
+> Remove the `--dry-run` flag before flight!
 
-$ helm upgrade \
-chc helm/ \
---install \
---namespace chc \
--f helm_vars/wpng/dev/values.yaml \
---debug --dry-run
-```
+[Back to the top](#testing-chc)
+
