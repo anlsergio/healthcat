@@ -48,14 +48,14 @@ docker-dev: docker
 	docker push $(IMAGE_NAME):dev
 
 # ensure:
-#	 1. kind cluster is up and running
+#  1. kind cluster is up and running
 #  2. chc namespace exists
 docker-kind: docker
 	kind load docker-image $(IMAGE_NAME):$(GIT_HASH) --name nginx
 	make deploy
 
 # ensure:
-#	 1. Minikube cluster is up and running
+#  1. Minikube cluster is up and running
 #  2. chc namespace exists
 #  3. your `~/.kube/config` file and context are set to use Minikube
 docker-minikube: docker
