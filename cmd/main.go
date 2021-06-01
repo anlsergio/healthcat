@@ -96,7 +96,6 @@ cluster identifier that will be included in all CHC reports.`,
 	flags.IntVarP(&args.nfailure, "failed-hc-cnt", "F", defaultNFailure, "number of failed consecutive health checks counts")
 	flags.IntVarP(&args.threshold, "status-threshold", "P", defaultThreshold, "percentage of successful health checks to set cluster status OK")
 	flags.StringVar(&args.logPreset, "log-preset", defaultLogPreset, "Log preset config (dev|prod)")
-
 	flags.StringVarP(&configFile, "config", "f", "", "/path/to/config.yml")
 
 	cmd.MarkFlagRequired("cluster-id")

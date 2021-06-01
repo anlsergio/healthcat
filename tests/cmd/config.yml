@@ -1,0 +1,4 @@
+# CHC configuration file
+excludedNamespaces: "healthcat,monitoring"
+port: 8989
+logPreset: "dev"
