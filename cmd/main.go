@@ -13,6 +13,7 @@ import (
 	"wiley.com/do-k8s-cluster-health-check/checker"
 	"wiley.com/do-k8s-cluster-health-check/k8s"
 	"wiley.com/do-k8s-cluster-health-check/server"
+	"wiley.com/do-k8s-cluster-health-check/utils"
 )
 
 const (
@@ -70,14 +71,9 @@ cluster identifier that will be included in all CHC reports.`,
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "could not get the valid path to the file: %v", err)
 				}
-				base := filepath.Base(abs)
-				path := filepath.Dir(abs)
-
-				viper.SetConfigName(strings.Split(base, ".")[0])
-				viper.SetConfigType("yaml")
-				viper.AddConfigPath(path)
-
-				if err := viper.ReadInConfig(); err != nil {
+				fileName := filepath.Base(abs)
+				fileLocation := filepath.Dir(abs)
+				if err := utils.LoadConfig(fileLocation, fileName); err != nil {
 					fmt.Fprintf(os.Stderr, "could not read config file: %v", err)
 					os.Exit(1)
 				}
