@@ -30,7 +30,7 @@ func TestFlags(t *testing.T) {
 			[]string{"kube-system", "default", "kube-public", "istio-system", "monitoring"},
 		},
 		{
-			[]string{"-f", "--failed-hc-cnt"}, "7", false,
+			[]string{"-F", "--failed-hc-cnt"}, "7", false,
 			7,
 			func() interface{} { return cmdArgs.nfailure }, 2,
 		},

@@ -2,10 +2,14 @@ package cmd
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"wiley.com/do-k8s-cluster-health-check/checker"
 	"wiley.com/do-k8s-cluster-health-check/k8s"
@@ -36,6 +40,10 @@ type mainCmdArgs struct {
 	logPreset          string
 }
 
+var (
+	configFile string
+)
+
 func newMainCmd(args *mainCmdArgs) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "chc",
@@ -57,6 +65,25 @@ it passes predefined number of successful health-checks
 will not be monitored by CHC.  Cluster ID (--cluster-id) is a unique
 cluster identifier that will be included in all CHC reports.`,
 		Args: cobra.NoArgs,
+		PersistentPreRun: func(ccmd *cobra.Command, args []string) {
+			if configFile != "" {
+				abs, err := filepath.Abs(configFile)
+				if err != nil {
+					log.Fatalf("could not get the valid path to the file: %v", err)
+				}
+				base := filepath.Base(abs)
+				path := filepath.Dir(abs)
+
+				viper.SetConfigName(strings.Split(base, ".")[0])
+				viper.SetConfigType("yaml")
+				viper.AddConfigPath(path)
+
+				if err := viper.ReadInConfig(); err != nil {
+					log.Fatalf("could not read config file: %v", err)
+					os.Exit(1)
+				}
+			}
+		},
 		RunE: func(*cobra.Command, []string) error {
 			return runServer(args)
 		},
@@ -71,9 +98,11 @@ cluster identifier that will be included in all CHC reports.`,
 		"list of namespaces to exclude")
 	flags.DurationVarP(&args.interval, "time-between-hc", "t", duration(defaultInterval), "time between two consecutive health checks")
 	flags.IntVarP(&args.nsuccess, "successful-hc-cnt", "s", defaultNSuccess, "number of successful consecutive health checks counts")
-	flags.IntVarP(&args.nfailure, "failed-hc-cnt", "f", defaultNFailure, "number of failed consecutive health checks counts")
+	flags.IntVarP(&args.nfailure, "failed-hc-cnt", "F", defaultNFailure, "number of failed consecutive health checks counts")
 	flags.IntVarP(&args.threshold, "status-threshold", "P", defaultThreshold, "percentage of successful health checks to set cluster status OK")
 	flags.StringVar(&args.logPreset, "log-preset", defaultLogPreset, "Log preset config (dev|prod)")
+
+	flags.StringVarP(&configFile, "config", "f", "", "/path/to/config.yml")
 
 	cmd.MarkFlagRequired("cluster-id")
 
