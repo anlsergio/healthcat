@@ -105,6 +105,8 @@ cluster identifier that will be included in all CHC reports.`,
 
 	cmd.MarkFlagRequired("cluster-id")
 
+	viper.BindPFlags(flags)
+
 	return cmd
 }
 
