@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -69,7 +68,7 @@ cluster identifier that will be included in all CHC reports.`,
 			if configFile != "" {
 				abs, err := filepath.Abs(configFile)
 				if err != nil {
-					log.Fatalf("could not get the valid path to the file: %v", err)
+					fmt.Fprintf(os.Stderr, "could not get the valid path to the file: %v", err)
 				}
 				base := filepath.Base(abs)
 				path := filepath.Dir(abs)
@@ -79,7 +78,7 @@ cluster identifier that will be included in all CHC reports.`,
 				viper.AddConfigPath(path)
 
 				if err := viper.ReadInConfig(); err != nil {
-					log.Fatalf("could not read config file: %v", err)
+					fmt.Fprintf(os.Stderr, "could not read config file: %v", err)
 					os.Exit(1)
 				}
 			}
