@@ -65,5 +65,4 @@ helm upgrade \
 ```
 > Remove the `--dry-run` flag before flight!
 
-[Back to the top](#testing-chc)
-
+[Back to the top](#do-k8s-cluster-health-check)
