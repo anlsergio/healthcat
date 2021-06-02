@@ -8,12 +8,10 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"wiley.com/do-k8s-cluster-health-check/checker"
 	"wiley.com/do-k8s-cluster-health-check/k8s"
 	"wiley.com/do-k8s-cluster-health-check/server"
-	"wiley.com/do-k8s-cluster-health-check/utils"
 )
 
 const (
@@ -40,15 +38,16 @@ type mainCmdArgs struct {
 	logPreset          string
 }
 
-var (
-	configFile string
-)
+// var (
+// 	configFile string
+// )
 
-func newMainCmd(args *mainCmdArgs) *cobra.Command {
-	cmd := &cobra.Command{
+func newMainCmd(mainArgs *mainCmdArgs) *cobra.Command {
+	var configFile string
+	rootCmd := &cobra.Command{
 		Use: "chc",
 		Long: `CHC - Cluster Health Check
-
+s
 Provides HTTP status (200 OK|5xx Failed) of a k8s cluster based on the
 percentage of healthy services (--status-threshold) in the monitored
 namespaces (--namespaces).  
@@ -65,7 +64,7 @@ it passes predefined number of successful health-checks
 will not be monitored by CHC.  Cluster ID (--cluster-id) is a unique
 cluster identifier that will be included in all CHC reports.`,
 		Args: cobra.NoArgs,
-		PersistentPreRun: func(ccmd *cobra.Command, args []string) {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if configFile != "" {
 				abs, err := filepath.Abs(configFile)
 				if err != nil {
@@ -73,36 +72,33 @@ cluster identifier that will be included in all CHC reports.`,
 				}
 				fileName := filepath.Base(abs)
 				fileLocation := filepath.Dir(abs)
-				if err := utils.LoadConfig(fileLocation, fileName); err != nil {
-					fmt.Fprintf(os.Stderr, "could not read config file: %v", err)
-					os.Exit(1)
-				}
+
+				return LoadConfig(cmd, fileLocation, fileName)
 			}
+			return nil
 		},
 		RunE: func(*cobra.Command, []string) error {
-			return runServer(args)
+			return runServer(mainArgs)
 		},
 	}
 
-	flags := cmd.Flags()
-	flags.StringVarP(&args.clusterID, "cluster-id", "i", "", "cluster ID")
-	flags.StringVarP(&args.host, "listen-address", "l", defaultAddress, "bind address")
-	flags.IntVarP(&args.port, "port", "p", defaultPort, "bind port")
-	flags.StringSliceVarP(&args.namespaces, "namespaces", "n", []string{}, "list of namespaces to watch")
-	flags.StringSliceVarP(&args.excludedNamespaces, "excluded-namespaces", "N", strings.Split(defaultExcludes, ","),
+	flags := rootCmd.Flags()
+	flags.StringVarP(&mainArgs.clusterID, "cluster-id", "i", "", "cluster ID")
+	flags.StringVarP(&mainArgs.host, "listen-address", "l", defaultAddress, "bind address")
+	flags.IntVarP(&mainArgs.port, "port", "p", defaultPort, "bind port")
+	flags.StringSliceVarP(&mainArgs.namespaces, "namespaces", "n", []string{}, "list of namespaces to watch")
+	flags.StringSliceVarP(&mainArgs.excludedNamespaces, "excluded-namespaces", "N", strings.Split(defaultExcludes, ","),
 		"list of namespaces to exclude")
-	flags.DurationVarP(&args.interval, "time-between-hc", "t", duration(defaultInterval), "time between two consecutive health checks")
-	flags.IntVarP(&args.nsuccess, "successful-hc-cnt", "s", defaultNSuccess, "number of successful consecutive health checks counts")
-	flags.IntVarP(&args.nfailure, "failed-hc-cnt", "F", defaultNFailure, "number of failed consecutive health checks counts")
-	flags.IntVarP(&args.threshold, "status-threshold", "P", defaultThreshold, "percentage of successful health checks to set cluster status OK")
-	flags.StringVar(&args.logPreset, "log-preset", defaultLogPreset, "Log preset config (dev|prod)")
-	flags.StringVarP(&configFile, "config", "f", string(utils.RootDir() + "/config/config.yml"), "/path/to/config.yml")
+	flags.DurationVarP(&mainArgs.interval, "time-between-hc", "t", duration(defaultInterval), "time between two consecutive health checks")
+	flags.IntVarP(&mainArgs.nsuccess, "successful-hc-cnt", "s", defaultNSuccess, "number of successful consecutive health checks counts")
+	flags.IntVarP(&mainArgs.nfailure, "failed-hc-cnt", "F", defaultNFailure, "number of failed consecutive health checks counts")
+	flags.IntVarP(&mainArgs.threshold, "status-threshold", "P", defaultThreshold, "percentage of successful health checks to set cluster status OK")
+	flags.StringVar(&mainArgs.logPreset, "log-preset", defaultLogPreset, "Log preset config (dev|prod)")
+	flags.StringVarP(&configFile, "config", "f", "", "/path/to/config.yml")
 
-	cmd.MarkFlagRequired("cluster-id")
+	rootCmd.MarkFlagRequired("cluster-id")
 
-	viper.BindPFlags(flags)
-
-	return cmd
+	return rootCmd
 }
 
 // Execute executes the root command
