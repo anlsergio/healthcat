@@ -22,14 +22,16 @@ port: 8980
 log-preset: prod
 `)
 
+type testCase struct {
+	name string
+	want interface{}
+	got  func() interface{}
+}
+
 func TestLoadConfigPrecedenceOrder(t *testing.T) {
 	var cmdArgs *mainCmdArgs
 
-	configFileTestCases := []struct {
-		name string
-		want interface{}
-		got  func() interface{}
-	}{
+	configFileTestCases := []testCase {
 		{
 			name: "listen-address",
 			want: "localhost",
@@ -102,11 +104,7 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 		},
 	}
 
-	envVariableTestCases := []struct {
-		name string
-		want interface{}
-		got func () interface{}
-	}{
+	envVariableTestCases := []testCase {
 		{
 			name: "HEALTHCAT_LISTEN_ADDRESS",
 			want: "localhost_from_env.com",
@@ -179,6 +177,23 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 		},
 	}
 
+	flagTestCases := []testCase {
+		{
+			name: "cluster-id",
+			want: "wiley.com",
+			got: func() interface{} {
+				return cmdArgs.clusterID
+			},
+		},
+		{
+			name: "namespaces",
+			want: "anotsofancyapp",
+			got: func() interface{} {
+				return cmdArgs.namespaces
+			},
+		},
+	}
+
 	tmpDir := t.TempDir()
 
 	currentDir, err := os.Getwd()
@@ -203,52 +218,76 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 		t.Errorf("couldn't write data into the test file: %v", err)
 	}
 
-	t.Run("ConfigFile", func(t *testing.T) {
-		flags := []string{
+	// Assert that parameters provided by a config file takes effect even if a default flag value is set
+	t.Run("Config file takes precedence", func(t *testing.T) {
+		args := []string{
 			"--config", "./config.yml",
 		}
 
 		cmdArgs = &mainCmdArgs{}
 		cmd := newMainCmd(cmdArgs)
-		resetCommand(cmd, flags)
+		resetCommand(cmd, args)
 		if err := cmd.Execute(); err != nil {
 			t.Errorf("got error: %v", err)
 		}
 
-		for _, p := range configFileTestCases {
-			if strings.Contains(fmt.Sprintf("%v", p.want), ",") {
-				p.want = strings.Split(fmt.Sprintf("%v", p.want), ",")
-			}
-			if got, want := p.got(), p.want; !reflect.DeepEqual(got, want) {
-				t.Errorf("got %v, want %v, name: %v", got, want, p.name)
-			}
-		}
+		runTests(configFileTestCases, t)
 	})
 
-	t.Run("Env. Variable", func(t *testing.T) {
-		flags := []string{
+	// Assert that parameters provided as env. variables take precedence over the config file ones
+	t.Run("Env. variable takes precedence", func(t *testing.T) {
+		args := []string{
 			"--config", "./config.yml",
 		}
 
-		for _, p := range envVariableTestCases {
-			os.Setenv(p.name, fmt.Sprintf("%v", p.want))
-			defer os.Unsetenv(p.name)
+		for _, e := range envVariableTestCases {
+			os.Setenv(e.name, fmt.Sprintf("%v", e.want))
+			defer os.Unsetenv(e.name)
 		}
 
 		cmdArgs = &mainCmdArgs{}
 		cmd := newMainCmd(cmdArgs)
-		resetCommand(cmd, flags)
+		resetCommand(cmd, args)
 		if err := cmd.Execute(); err != nil {
 			t.Errorf("got error: %v", err)
 		}
 
-		for _, p := range envVariableTestCases {
-			if strings.Contains(fmt.Sprintf("%v", p.want), ",") {
-				p.want = strings.Split(fmt.Sprintf("%v", p.want), ",")
-			}
-			if got, want := p.got(), p.want; !reflect.DeepEqual(got, want) {
-				t.Errorf("got %v, want %v, name: %v", got, want, p.name)
-			}
-		}
+		runTests(envVariableTestCases, t)
 	})
+
+	// Assert that the parameters provided as flags take precedence over all
+	t.Run("Flags takes precedence", func(t *testing.T) {
+		args := []string{
+			"--cluster-id", "wiley.com",
+			"--namespaces", "anotsofancyapp",
+			"--config", "./config.yml",
+		}
+
+		for _, e := range envVariableTestCases {
+			os.Setenv(e.name, fmt.Sprintf("%v", e.want))
+			defer os.Unsetenv(e.name)
+		}
+
+		cmdArgs = &mainCmdArgs{}
+		cmd := newMainCmd(cmdArgs)
+		resetCommand(cmd, args)
+		if err := cmd.Execute(); err != nil {
+			t.Errorf("got error: %v", err)
+		}
+
+		runTests(flagTestCases, t)
+	})
+}
+
+func runTests(testCases []testCase, t *testing.T) {
+	for _, p := range testCases {
+		if strings.Contains(fmt.Sprintf("%v", p.want), ",") {
+			p.want = strings.Split(fmt.Sprintf("%v", p.want), ",")
+		} else if reflect.TypeOf(p.got()).Kind() == reflect.Slice && reflect.TypeOf(p.want).Kind() == reflect.String {
+			p.want = []string{fmt.Sprintf("%v", p.want)}
+		}
+		if got, want := p.got(), p.want; !reflect.DeepEqual(got, want) {
+			t.Errorf("got %v, want %v, name: %v", got, want, p.name)
+		}
+	}
 }
