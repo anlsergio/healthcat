@@ -2,14 +2,11 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/spf13/cobra"
 )
 
 var yamlConfigFile = []byte(`
@@ -111,6 +108,20 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 		got func () interface{}
 	}{
 		{
+			name: "HEALTHCAT_LISTEN_ADDRESS",
+			want: "localhost_from_env.com",
+			got: func() interface{} {
+				return cmdArgs.host
+			},
+		},
+		{
+			name: "HEALTHCAT_CLUSTER_ID",
+			want: "a_not_so_random_domain.com",
+			got: func() interface{} {
+				return cmdArgs.clusterID
+			},
+		},
+		{
 			name: "HEALTHCAT_NAMESPACES",
 			want: "myapp,anotherfancyapp",
 			got: func() interface{} {
@@ -125,10 +136,10 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 			},
 		},
 		{
-			name: "HEALTHCAT_FAILED_HC_CNT",
-			want: 5,
+			name: "HEALTHCAT_TIME_BETWEEN_HC",
+			want: "10m0s",
 			got: func() interface{} {
-				return cmdArgs.nfailure
+				return time.Duration.String(cmdArgs.interval)
 			},
 		},
 		{
@@ -136,6 +147,13 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 			want: 8,
 			got: func() interface{} {
 				return cmdArgs.nsuccess
+			},
+		},
+		{
+			name: "HEALTHCAT_FAILED_HC_CNT",
+			want: 5,
+			got: func() interface{} {
+				return cmdArgs.nfailure
 			},
 		},
 		{
@@ -153,15 +171,8 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 			},
 		},
 		{
-			name: "HEALTHCAT_TIME_BETWEEN_HC",
-			want: "10m0s",
-			got: func() interface{} {
-				return time.Duration.String(cmdArgs.interval)
-			},
-		},
-		{
 			name: "HEALTHCAT_LOG_PRESET",
-			want: "prod",
+			want: "zzzz",
 			got: func() interface{} {
 				return cmdArgs.logPreset
 			},
@@ -193,9 +204,13 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 	}
 
 	t.Run("ConfigFile", func(t *testing.T) {
+		flags := []string{
+			"--config", "./config.yml",
+		}
+
 		cmdArgs = &mainCmdArgs{}
 		cmd := newMainCmd(cmdArgs)
-		resetCommandWithoutArgs(cmd)
+		resetCommand(cmd, flags)
 		if err := cmd.Execute(); err != nil {
 			t.Errorf("got error: %v", err)
 		}
@@ -211,6 +226,10 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 	})
 
 	t.Run("Env. Variable", func(t *testing.T) {
+		flags := []string{
+			"--config", "./config.yml",
+		}
+
 		for _, p := range envVariableTestCases {
 			os.Setenv(p.name, fmt.Sprintf("%v", p.want))
 			defer os.Unsetenv(p.name)
@@ -218,7 +237,7 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 
 		cmdArgs = &mainCmdArgs{}
 		cmd := newMainCmd(cmdArgs)
-		resetCommandWithoutArgs(cmd)
+		resetCommand(cmd, flags)
 		if err := cmd.Execute(); err != nil {
 			t.Errorf("got error: %v", err)
 		}
@@ -231,16 +250,5 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 				t.Errorf("got %v, want %v, name: %v", got, want, p.name)
 			}
 		}
-	})
-}
-
-func resetCommandWithoutArgs(cmd *cobra.Command) {
-	cmd.RunE = func(*cobra.Command, []string) error { return nil }
-	cmd.SetErr(ioutil.Discard)
-	cmd.SetOutput(ioutil.Discard)
-	cmd.SetUsageFunc(func(*cobra.Command) error { return nil })
-	cmd.SetArgs([]string{
-		// "--cluster-id", "wiley.com",
-		"--config", "./config.yml",
 	})
 }
