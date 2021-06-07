@@ -13,15 +13,16 @@ import (
 )
 
 var yamlConfigFile = []byte(`
-excludednamespaces: healthcat,monitoring
-host: '*'
-interval: 5m
-logpreset: prod
-namespaces: ""
-nfailure: 2
-nsuccess: 1
+listen-address: localhost
+cluster-id: random_domain.com
+namespaces: nsfromconfig,anotherone,yetanotheronefromconfig
+excluded-namespaces: healthcat,monitoring
+time-between-hc: 5m
+successful-hc-cnt: 4
+failed-hc-cnt: 6
+status-threshold: 200
 port: 8980
-threshold: 200
+log-preset: prod
 `)
 
 func TestLoadConfigPrecedenceOrder(t *testing.T) {
@@ -33,6 +34,62 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 		got  func() interface{}
 	}{
 		{
+			name: "listen-address",
+			want: "localhost",
+			got: func() interface{} {
+				return cmdArgs.host
+			},
+		},
+		{
+			name: "cluster-id",
+			want: "random_domain.com",
+			got: func() interface{} {
+				return cmdArgs.clusterID
+			},
+		},
+		{
+			name: "excluded-namespaces",
+			want: "healthcat,monitoring",
+			got: func() interface{} {
+				return cmdArgs.excludedNamespaces
+			},
+		},
+		{
+			name: "namespaces",
+			want: "nsfromconfig,anotherone,yetanotheronefromconfig",
+			got: func() interface{} {
+				return cmdArgs.namespaces
+			},
+		},
+		{
+			name: "time-between-hc",
+			want: "5m0s",
+			got: func() interface{} {
+				return time.Duration.String(cmdArgs.interval)
+			},
+		},
+		{
+			name: "successful-hc-cnt",
+			want: 4,
+			got: func() interface{} {
+				return cmdArgs.nsuccess
+			},
+		},
+		{
+			name: "failed-hc-cnt",
+			want: 6,
+			got: func() interface{} {
+				return cmdArgs.nfailure
+			},
+		},
+		{
+			name: "status-threshold",
+			want: 200,
+			got: func() interface{} {
+				return cmdArgs.threshold
+			},
+		},
+		{
 			name: "port",
 			want: 8980,
 			got: func() interface{} {
@@ -41,7 +98,7 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 		},
 		{
 			name: "logPreset",
-			want: "dev",
+			want: "prod",
 			got: func() interface{} {
 				return cmdArgs.logPreset
 			},
@@ -102,6 +159,13 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 				return time.Duration.String(cmdArgs.interval)
 			},
 		},
+		{
+			name: "HEALTHCAT_LOG_PRESET",
+			want: "prod",
+			got: func() interface{} {
+				return cmdArgs.logPreset
+			},
+		},
 	}
 
 	tmpDir := t.TempDir()
@@ -137,6 +201,9 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 		}
 
 		for _, p := range configFileTestCases {
+			if strings.Contains(fmt.Sprintf("%v", p.want), ",") {
+				p.want = strings.Split(fmt.Sprintf("%v", p.want), ",")
+			}
 			if got, want := p.got(), p.want; !reflect.DeepEqual(got, want) {
 				t.Errorf("got %v, want %v, name: %v", got, want, p.name)
 			}
@@ -173,7 +240,7 @@ func resetCommandWithoutArgs(cmd *cobra.Command) {
 	cmd.SetOutput(ioutil.Discard)
 	cmd.SetUsageFunc(func(*cobra.Command) error { return nil })
 	cmd.SetArgs([]string{
-		"--cluster-id", "wiley.com",
+		// "--cluster-id", "wiley.com",
 		"--config", "./config.yml",
 	})
 }

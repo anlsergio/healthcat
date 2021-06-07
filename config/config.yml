@@ -1,11 +1,11 @@
 # CHC configuration file
-host: "*"
-clusterID: "wiley.com"
+listen-address: "*"
+cluster-id: wiley.com
 namespaces: ""
-excludedNamespaces: "kube-system,default,kube-public,istio-system,monitoring"
-interval: "1m"
-nsuccess: 1
-nfailure: 2
-threshold: 100
+excluded-namespaces: "kube-system,default,kube-public,istio-system,monitoring"
+time-between-hc: 1m
+successful-hc-cnt: 1
+failed-hc-cnt: 2
+status-threshold: 100
 port: 8090
-logPreset: "dev"
+log-preset: dev

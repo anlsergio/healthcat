@@ -49,7 +49,7 @@ func bindFlags(cmd *cobra.Command, v *viper.Viper) {
 		if strings.Contains(f.Name, "-") {
 			envVarSuffix := strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))
 			v.BindEnv(f.Name, fmt.Sprintf("%s_%s", configEnvPrefix, envVarSuffix))
-			// fmt.Printf("Changing variables: %s_%s\n", configEnvPrefix, envVarSuffix)
+			fmt.Printf("Changing variables: %s_%s\n", configEnvPrefix, envVarSuffix)
 		}
 
 		if !f.Changed && v.IsSet(f.Name) {
