@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strings"
 	"testing"
-	"time"
 )
 
 var yamlConfigFile = []byte(`
@@ -23,227 +21,307 @@ log-preset: prod
 `)
 
 type testCase struct {
-	name string
-	want interface{}
-	got  func() interface{}
+	name         string
+	configSource string
+	value        string
+	want         interface{}
+	got          func() interface{}
 }
 
 func TestLoadConfigPrecedenceOrder(t *testing.T) {
-	var cmdArgs *mainCmdArgs
+	cmdArgs := &mainCmdArgs{}
 
-	configFileTestCases := []testCase {
+	configFileTestCases := []testCase{
 		{
-			name: "listen-address",
-			want: "localhost",
+			name:         "listen-address",
+			configSource: "file",
+			value:        "localhost",
+			want:         "localhost",
 			got: func() interface{} {
 				return cmdArgs.host
 			},
 		},
 		{
-			name: "cluster-id",
-			want: "random_domain.com",
+			name:         "cluster-id",
+			configSource: "file",
+			value:        "random_domain.com",
+			want:         "random_domain.com",
 			got: func() interface{} {
 				return cmdArgs.clusterID
 			},
 		},
 		{
-			name: "excluded-namespaces",
-			want: "healthcat,monitoring",
+			name:         "excluded-namespaces",
+			configSource: "file",
+			value:        "healthcat,monitoring",
+			want:         []string{"healthcat", "monitoring"},
 			got: func() interface{} {
 				return cmdArgs.excludedNamespaces
 			},
 		},
 		{
-			name: "namespaces",
-			want: "nsfromconfig,anotherone,yetanotheronefromconfig",
+			name:         "namespaces",
+			configSource: "file",
+			value:        "nsfromconfig,anotherone,yetanotheronefromconfig",
+			want:         []string{"nsfromconfig", "anotherone", "yetanotheronefromconfig"},
 			got: func() interface{} {
 				return cmdArgs.namespaces
 			},
 		},
 		{
-			name: "time-between-hc",
-			want: "5m0s",
+			name:         "time-between-hc",
+			configSource: "file",
+			value:        "5m0s",
+			want:         duration("5m0s"),
 			got: func() interface{} {
-				return time.Duration.String(cmdArgs.interval)
+				return cmdArgs.interval
 			},
 		},
 		{
-			name: "successful-hc-cnt",
-			want: 4,
+			name:         "successful-hc-cnt",
+			configSource: "file",
+			value:        "4",
+			want:         4,
 			got: func() interface{} {
 				return cmdArgs.nsuccess
 			},
 		},
 		{
-			name: "failed-hc-cnt",
-			want: 6,
+			name:         "failed-hc-cnt",
+			configSource: "file",
+			value:        "6",
+			want:         6,
 			got: func() interface{} {
 				return cmdArgs.nfailure
 			},
 		},
 		{
-			name: "status-threshold",
-			want: 200,
+			name:         "status-threshold",
+			configSource: "file",
+			value:        "200",
+			want:         200,
 			got: func() interface{} {
 				return cmdArgs.threshold
 			},
 		},
 		{
-			name: "port",
-			want: 8980,
+			name:         "port",
+			configSource: "file",
+			value:        "8980",
+			want:         8980,
 			got: func() interface{} {
 				return cmdArgs.port
 			},
 		},
 		{
-			name: "logPreset",
-			want: "prod",
+			name:         "logPreset",
+			configSource: "file",
+			value:        "prod",
+			want:         "prod",
 			got: func() interface{} {
 				return cmdArgs.logPreset
 			},
 		},
 	}
 
-	envVariableTestCases := []testCase {
+	envVariableTestCases := []testCase{
 		{
-			name: "HEALTHCAT_LISTEN_ADDRESS",
-			want: "localhost_from_env.com",
+			name:         "HEALTHCAT_LISTEN_ADDRESS",
+			configSource: "env",
+			value:        "localhost_from_env.com",
+			want:         "localhost_from_env.com",
 			got: func() interface{} {
 				return cmdArgs.host
 			},
 		},
 		{
-			name: "HEALTHCAT_CLUSTER_ID",
-			want: "a_not_so_random_domain.com",
+			name:         "HEALTHCAT_CLUSTER_ID",
+			configSource: "env",
+			value:        "a_not_so_random_domain.com",
+			want:         "a_not_so_random_domain.com",
 			got: func() interface{} {
 				return cmdArgs.clusterID
 			},
 		},
 		{
-			name: "HEALTHCAT_NAMESPACES",
-			want: "myapp,anotherfancyapp",
+			name:         "HEALTHCAT_NAMESPACES",
+			configSource: "env",
+			value:        "myapp,anotherfancyapp",
+			want:         []string{"myapp", "anotherfancyapp"},
 			got: func() interface{} {
 				return cmdArgs.namespaces
 			},
 		},
 		{
-			name: "HEALTHCAT_EXCLUDED_NAMESPACES",
-			want: "healthcat,monitoring,somethingelse",
+			name:         "HEALTHCAT_EXCLUDED_NAMESPACES",
+			configSource: "env",
+			value:        "healthcat,monitoring,somethingelse",
+			want:         []string{"healthcat", "monitoring", "somethingelse"},
 			got: func() interface{} {
 				return cmdArgs.excludedNamespaces
 			},
 		},
 		{
-			name: "HEALTHCAT_TIME_BETWEEN_HC",
-			want: "10m0s",
+			name:         "HEALTHCAT_TIME_BETWEEN_HC",
+			configSource: "env",
+			value:        "10m0s",
+			want:         duration("10m0s"),
 			got: func() interface{} {
-				return time.Duration.String(cmdArgs.interval)
+				return cmdArgs.interval
 			},
 		},
 		{
-			name: "HEALTHCAT_SUCCESSFUL_HC_CNT",
-			want: 8,
+			name:         "HEALTHCAT_SUCCESSFUL_HC_CNT",
+			configSource: "env",
+			value:        "8",
+			want:         8,
 			got: func() interface{} {
 				return cmdArgs.nsuccess
 			},
 		},
 		{
-			name: "HEALTHCAT_FAILED_HC_CNT",
-			want: 5,
+			name:         "HEALTHCAT_FAILED_HC_CNT",
+			configSource: "env",
+			value:        "5",
+			want:         5,
 			got: func() interface{} {
 				return cmdArgs.nfailure
 			},
 		},
 		{
-			name: "HEALTHCAT_STATUS_THRESHOLD",
-			want: 75,
+			name:         "HEALTHCAT_STATUS_THRESHOLD",
+			configSource: "env",
+			value:        "75",
+			want:         75,
 			got: func() interface{} {
 				return cmdArgs.threshold
 			},
 		},
 		{
-			name: "HEALTHCAT_PORT",
-			want: 8585,
+			name:         "HEALTHCAT_PORT",
+			configSource: "env",
+			value:        "8585",
+			want:         8585,
 			got: func() interface{} {
 				return cmdArgs.port
 			},
 		},
 		{
-			name: "HEALTHCAT_LOG_PRESET",
-			want: "zzzz",
+			name:         "HEALTHCAT_LOG_PRESET",
+			configSource: "env",
+			value:        "zzzz",
+			want:         "zzzz",
 			got: func() interface{} {
 				return cmdArgs.logPreset
 			},
 		},
 	}
 
-	flagTestCases := []testCase {
+	flagTestCases := []testCase{
 		{
-			name: "HEALTHCAT_LISTEN_ADDRESS",
-			want: "localhost_from_env.com",
-			got: func() interface{} {
-				return cmdArgs.host
-			},
-		},
-		{
-			name: "cluster-id",
-			want: "wiley.com",
+			name:         "--cluster-id",
+			configSource: "flag",
+			value:        "wiley.com",
+			want:         "wiley.com",
 			got: func() interface{} {
 				return cmdArgs.clusterID
 			},
 		},
 		{
-			name: "namespaces",
-			want: "anotsofancyapp",
+			name:         "--namespaces",
+			configSource: "flag",
+			value:        "anotsofancyapp",
+			want:         []string{"anotsofancyapp"},
 			got: func() interface{} {
 				return cmdArgs.namespaces
 			},
 		},
 		{
-			name: "HEALTHCAT_EXCLUDED_NAMESPACES",
-			want: "healthcat,monitoring,somethingelse",
+			name:         "HEALTHCAT_LISTEN_ADDRESS",
+			configSource: "env",
+			value:        "localhost_from_env.com",
+			want:         "localhost_from_env.com",
+			got: func() interface{} {
+				return cmdArgs.host
+			},
+		},
+		{
+			name:         "HEALTHCAT_CLUSTER_ID",
+			configSource: "env",
+			value:        "a_not_so_random_domain.com",
+			want:         "wiley.com",
+			got: func() interface{} {
+				return cmdArgs.clusterID
+			},
+		},
+		{
+			name:         "HEALTHCAT_NAMESPACES",
+			configSource: "env",
+			value:        "myapp,anotherfancyapp",
+			want:         []string{"anotsofancyapp"},
+			got: func() interface{} {
+				return cmdArgs.namespaces
+			},
+		},
+		{
+			name:         "HEALTHCAT_EXCLUDED_NAMESPACES",
+			configSource: "env",
+			value:        "healthcat,monitoring,somethingelse",
+			want:         []string{"healthcat", "monitoring", "somethingelse"},
 			got: func() interface{} {
 				return cmdArgs.excludedNamespaces
 			},
 		},
 		{
-			name: "HEALTHCAT_TIME_BETWEEN_HC",
-			want: "10m0s",
+			name:         "HEALTHCAT_TIME_BETWEEN_HC",
+			configSource: "env",
+			value:        "10m0s",
+			want:         duration("10m0s"),
 			got: func() interface{} {
-				return time.Duration.String(cmdArgs.interval)
+				return cmdArgs.interval
 			},
 		},
 		{
-			name: "HEALTHCAT_SUCCESSFUL_HC_CNT",
-			want: 8,
+			name:         "HEALTHCAT_SUCCESSFUL_HC_CNT",
+			configSource: "env",
+			value:        "8",
+			want:         8,
 			got: func() interface{} {
 				return cmdArgs.nsuccess
 			},
 		},
 		{
-			name: "HEALTHCAT_FAILED_HC_CNT",
-			want: 5,
+			name:         "HEALTHCAT_FAILED_HC_CNT",
+			configSource: "env",
+			value:        "5",
+			want:         5,
 			got: func() interface{} {
 				return cmdArgs.nfailure
 			},
 		},
 		{
-			name: "HEALTHCAT_STATUS_THRESHOLD",
-			want: 75,
+			name:         "HEALTHCAT_STATUS_THRESHOLD",
+			configSource: "env",
+			value:        "75",
+			want:         75,
 			got: func() interface{} {
 				return cmdArgs.threshold
 			},
 		},
 		{
-			name: "HEALTHCAT_PORT",
-			want: 8585,
+			name:         "port",
+			configSource: "file",
+			value:        "8980",
+			want:         8980,
 			got: func() interface{} {
 				return cmdArgs.port
 			},
 		},
 		{
-			name: "HEALTHCAT_LOG_PRESET",
-			want: "zzzz",
+			name:         "log-preset",
+			configSource: "file",
+			value:        "prod",
+			want:         "prod",
 			got: func() interface{} {
 				return cmdArgs.logPreset
 			},
@@ -269,79 +347,65 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 	}
 	defer f.Close()
 
-	_, err2 := f.Write(yamlConfigFile)
-	if err2 != nil {
-		t.Errorf("couldn't write data into the test file: %v", err)
+	_, fileErr := f.Write(yamlConfigFile)
+	if fileErr != nil {
+		t.Errorf("couldn't write data into the test file: %v", fileErr)
 	}
 
-	// Assert that parameters provided by a config file takes effect even if a default flag value is set
-	t.Run("Config file takes precedence", func(t *testing.T) {
-		args := []string{
+	// Assert that parameters provided by a config file take effect even if a default flag value is set
+	t.Run("Config file parameters parsing", func(t *testing.T) {
+		flags := []string{
 			"--config", "./config.yml",
 		}
 
-		cmdArgs = &mainCmdArgs{}
-		cmd := newMainCmd(cmdArgs)
-		resetCommand(cmd, args)
-		if err := cmd.Execute(); err != nil {
-			t.Errorf("got error: %v", err)
-		}
-
-		runTests(configFileTestCases, t)
+		runTests(cmdArgs, flags, configFileTestCases, t)
 	})
 
-	// Assert that parameters provided as env. variables take precedence over the config file ones
-	t.Run("Env. variables take precedence", func(t *testing.T) {
-		args := []string{
+	// Assert that parameters provided as env. variables take effect even if a config file is being used as config source
+	t.Run("Env. variables parameters parsing", func(t *testing.T) {
+		flags := []string{
 			"--config", "./config.yml",
 		}
 
 		for _, e := range envVariableTestCases {
-			os.Setenv(e.name, fmt.Sprintf("%v", e.want))
-			defer os.Unsetenv(e.name)
+			if e.configSource == "env" {
+				os.Setenv(e.name, fmt.Sprintf("%v", e.value))
+				defer os.Unsetenv(e.name)
+			}
 		}
 
-		cmdArgs = &mainCmdArgs{}
-		cmd := newMainCmd(cmdArgs)
-		resetCommand(cmd, args)
-		if err := cmd.Execute(); err != nil {
-			t.Errorf("got error: %v", err)
-		}
-
-		runTests(envVariableTestCases, t)
+		runTests(cmdArgs, flags, envVariableTestCases, t)
 	})
 
-	// Assert that the parameters provided as flags take precedence over all
-	t.Run("Flags take precedence", func(t *testing.T) {
-		args := []string{
-			"--cluster-id", "wiley.com",
-			"--namespaces", "anotsofancyapp",
+	// Assert the precedence order:
+	// - Flags take precedence over all
+	// - Env. variables take precedence over the config file source
+	// - The config file source takes precedence over default values (--config)
+	t.Run("Precedence Order", func(t *testing.T) {
+		flags := []string{
 			"--config", "./config.yml",
 		}
-
-		for _, e := range envVariableTestCases {
-			os.Setenv(e.name, fmt.Sprintf("%v", e.want))
-			defer os.Unsetenv(e.name)
+		for _, p := range flagTestCases {
+			if p.configSource == "env" {
+				os.Setenv(p.name, fmt.Sprintf("%v", p.value))
+				defer os.Unsetenv(p.name)
+			} else if p.configSource == "flag" {
+				flags = append(flags, p.name, p.value)
+			}
 		}
 
-		cmdArgs = &mainCmdArgs{}
-		cmd := newMainCmd(cmdArgs)
-		resetCommand(cmd, args)
-		if err := cmd.Execute(); err != nil {
-			t.Errorf("got error: %v", err)
-		}
-
-		runTests(flagTestCases, t)
+		runTests(cmdArgs, flags, flagTestCases, t)
 	})
 }
 
-func runTests(testCases []testCase, t *testing.T) {
+func runTests(cmdArgs *mainCmdArgs, flags []string, testCases []testCase, t *testing.T) {
+	cmd := newMainCmd(cmdArgs)
+	resetCommand(cmd, flags)
+	if err := cmd.Execute(); err != nil {
+		t.Errorf("got error: %v", err)
+	}
+
 	for _, p := range testCases {
-		if strings.Contains(fmt.Sprintf("%v", p.want), ",") {
-			p.want = strings.Split(fmt.Sprintf("%v", p.want), ",")
-		} else if reflect.TypeOf(p.got()).Kind() == reflect.Slice && reflect.TypeOf(p.want).Kind() == reflect.String {
-			p.want = []string{fmt.Sprintf("%v", p.want)}
-		}
 		if got, want := p.got(), p.want; !reflect.DeepEqual(got, want) {
 			t.Errorf("got %v, want %v, name: %v", got, want, p.name)
 		}
