@@ -377,11 +377,11 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 		runTests(cmdArgs, flags, envVariableTestCases, t)
 	})
 
-	// Assert the precedence order:
+	// Assert the order of precedence:
 	// - Flags take precedence over all
 	// - Env. variables take precedence over the config file source
 	// - The config file source takes precedence over default values (--config)
-	t.Run("Precedence Order", func(t *testing.T) {
+	t.Run("Order of precedence", func(t *testing.T) {
 		flags := []string{
 			"--config", "./config.yml",
 		}
