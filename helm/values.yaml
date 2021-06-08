@@ -18,6 +18,15 @@ args: []
   # - port=80
   # - namespaces=wasdev
 
+# set environment variables to the deployment pods:
+env: []
+  # - name: HEALTHCAT_CLUSTER_ID
+  #   value: "wiley.com"
+  # - name: HEALTHCAT_NAMESPACES
+  #   value: "myappns"
+  # - name: HEALTHCAT_LOG_PRESET
+  #   value: "dev"
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""

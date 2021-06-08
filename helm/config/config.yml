@@ -8,4 +8,4 @@ failed-hc-cnt: 2
 time-between-hc: 1m
 status-threshold: 100
 port: 80
-log-preset: dev
+log-preset: prod

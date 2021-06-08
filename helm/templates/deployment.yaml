@@ -33,6 +33,10 @@ spec:
             {{- range .Values.args }}
             - --{{ . }}
             {{- end }}
+          {{- if .Values.env }}
+          env:
+            {{- toYaml .Values.env | nindent 12 }}
+          {{- end }}
           ports:
             - name: http
               containerPort: 80
