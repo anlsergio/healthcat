@@ -108,6 +108,16 @@ func TestFlags(t *testing.T) {
 			},
 			defaultVal: 100,
 		},
+		{
+			names:    []string{"-f", "--config"},
+			arg:      "../config/config.yml",
+			required: false,
+			want:     "../config/config.yml",
+			value: func() interface{} {
+				return cmdArgs.configFile
+			},
+			defaultVal: "./config/config.yml",
+		},
 	}
 
 	var required []string

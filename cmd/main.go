@@ -15,14 +15,15 @@ import (
 )
 
 const (
-	defaultAddress   = "*"
-	defaultExcludes  = "kube-system,default,kube-public,istio-system,monitoring"
-	defaultThreshold = 100
-	defaultNSuccess  = 1
-	defaultNFailure  = 2
-	defaultInterval  = "1m"
-	defaultPort      = 8080
-	defaultLogPreset = "dev"
+	defaultAddress    = "*"
+	defaultExcludes   = "kube-system,default,kube-public,istio-system,monitoring"
+	defaultThreshold  = 100
+	defaultNSuccess   = 1
+	defaultNFailure   = 2
+	defaultInterval   = "1m"
+	defaultPort       = 8080
+	defaultLogPreset  = "dev"
+	defaultConfigFile = "./config/config.yml"
 )
 
 type mainCmdArgs struct {
@@ -36,14 +37,10 @@ type mainCmdArgs struct {
 	threshold          int
 	port               int
 	logPreset          string
+	configFile         string
 }
 
-// var (
-// 	configFile string
-// )
-
 func newMainCmd(mainArgs *mainCmdArgs) *cobra.Command {
-	var configFile string
 	rootCmd := &cobra.Command{
 		Use: "chc",
 		Long: `CHC - Cluster Health Check
@@ -65,8 +62,8 @@ will not be monitored by CHC.  Cluster ID (--cluster-id) is a unique
 cluster identifier that will be included in all CHC reports.`,
 		Args: cobra.NoArgs,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if configFile != "" {
-				abs, err := filepath.Abs(configFile)
+			if mainArgs.configFile != "" {
+				abs, err := filepath.Abs(mainArgs.configFile)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "could not get the valid path to the file: %v", err)
 				}
@@ -94,7 +91,7 @@ cluster identifier that will be included in all CHC reports.`,
 	flags.IntVarP(&mainArgs.nfailure, "failed-hc-cnt", "F", defaultNFailure, "number of failed consecutive health checks counts")
 	flags.IntVarP(&mainArgs.threshold, "status-threshold", "P", defaultThreshold, "percentage of successful health checks to set cluster status OK")
 	flags.StringVar(&mainArgs.logPreset, "log-preset", defaultLogPreset, "Log preset config (dev|prod)")
-	flags.StringVarP(&configFile, "config", "f", "", "/path/to/config.yml")
+	flags.StringVarP(&mainArgs.configFile, "config", "f", defaultConfigFile, "/path/to/config.yml")
 
 	rootCmd.MarkFlagRequired("cluster-id")
 
