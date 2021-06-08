@@ -1,0 +1,11 @@
+# CHC configuration file
+listen-address: '*'
+cluster-id: wiley.com
+namespaces: ''
+excluded-namespaces: kube-system,default,kube-public,istio-system,monitoring
+successful-hc-cnt: 1
+failed-hc-cnt: 2
+time-between-hc: 1m
+status-threshold: 100
+port: 80
+log-preset: dev

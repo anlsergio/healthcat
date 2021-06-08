@@ -11,7 +11,6 @@ image:
 
 args:
   - cluster-id=wpngdev
-  - port=80
   - namespaces=nginx
   - log-preset=prod
 

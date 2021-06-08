@@ -1,0 +1,10 @@
+{{- $configsLocation := "config/*.yml" -}}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "helm.fullname" . }}-config
+  labels:
+    {{- include "helm.labels" . | nindent 4 }}
+data:
+{{ (tpl (.Files.Glob $configsLocation).AsConfig . ) | indent 2 }}
