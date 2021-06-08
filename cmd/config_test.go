@@ -179,6 +179,13 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 
 	flagTestCases := []testCase {
 		{
+			name: "HEALTHCAT_LISTEN_ADDRESS",
+			want: "localhost_from_env.com",
+			got: func() interface{} {
+				return cmdArgs.host
+			},
+		},
+		{
 			name: "cluster-id",
 			want: "wiley.com",
 			got: func() interface{} {
@@ -190,6 +197,55 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 			want: "anotsofancyapp",
 			got: func() interface{} {
 				return cmdArgs.namespaces
+			},
+		},
+		{
+			name: "HEALTHCAT_EXCLUDED_NAMESPACES",
+			want: "healthcat,monitoring,somethingelse",
+			got: func() interface{} {
+				return cmdArgs.excludedNamespaces
+			},
+		},
+		{
+			name: "HEALTHCAT_TIME_BETWEEN_HC",
+			want: "10m0s",
+			got: func() interface{} {
+				return time.Duration.String(cmdArgs.interval)
+			},
+		},
+		{
+			name: "HEALTHCAT_SUCCESSFUL_HC_CNT",
+			want: 8,
+			got: func() interface{} {
+				return cmdArgs.nsuccess
+			},
+		},
+		{
+			name: "HEALTHCAT_FAILED_HC_CNT",
+			want: 5,
+			got: func() interface{} {
+				return cmdArgs.nfailure
+			},
+		},
+		{
+			name: "HEALTHCAT_STATUS_THRESHOLD",
+			want: 75,
+			got: func() interface{} {
+				return cmdArgs.threshold
+			},
+		},
+		{
+			name: "HEALTHCAT_PORT",
+			want: 8585,
+			got: func() interface{} {
+				return cmdArgs.port
+			},
+		},
+		{
+			name: "HEALTHCAT_LOG_PRESET",
+			want: "zzzz",
+			got: func() interface{} {
+				return cmdArgs.logPreset
 			},
 		},
 	}
@@ -235,7 +291,7 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 	})
 
 	// Assert that parameters provided as env. variables take precedence over the config file ones
-	t.Run("Env. variable takes precedence", func(t *testing.T) {
+	t.Run("Env. variables take precedence", func(t *testing.T) {
 		args := []string{
 			"--config", "./config.yml",
 		}
@@ -256,7 +312,7 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 	})
 
 	// Assert that the parameters provided as flags take precedence over all
-	t.Run("Flags takes precedence", func(t *testing.T) {
+	t.Run("Flags take precedence", func(t *testing.T) {
 		args := []string{
 			"--cluster-id", "wiley.com",
 			"--namespaces", "anotsofancyapp",

@@ -45,17 +45,17 @@ func LoadConfig(cmd *cobra.Command, filePath string, fileName string) error {
 
 func bindFlags(cmd *cobra.Command, v *viper.Viper) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
-		fmt.Printf("Flag: '%v', corresponding value from source: '%v'\n", f.Name, v.Get(f.Name))
+		// fmt.Printf("Flag: '%v', corresponding value from source: '%v'\n", f.Name, v.Get(f.Name))
 		if strings.Contains(f.Name, "-") {
 			envVarSuffix := strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))
 			v.BindEnv(f.Name, fmt.Sprintf("%s_%s", configEnvPrefix, envVarSuffix))
-			fmt.Printf("Changing variables: %s_%s\n", configEnvPrefix, envVarSuffix)
+			// fmt.Printf("Changing variables: %s_%s\n", configEnvPrefix, envVarSuffix)
 		}
 
 		if !f.Changed && v.IsSet(f.Name) {
 			val := v.Get(f.Name)
 			cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
-			fmt.Println("Setting unset parameters from configuration source: ", val)
+			// fmt.Println("Setting unset parameters from configuration source: ", val)
 		}
 	})
 	// v.WriteConfigAs("./config_generated_from_viper.yml")
