@@ -9,7 +9,7 @@ CHC should be able to detect both types of Pods - with and without health check,
 
 ## Test CHC
 
-Find bellow the steps needed to spin up a test environment on your local workspace.
+Find below the steps needed to spin up a test environment on your local workspace.
 
 <br />
 

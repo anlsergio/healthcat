@@ -3,9 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path"
-	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -58,9 +55,3 @@ func bindFlags(cmd *cobra.Command, v *viper.Viper) {
 	// v.WriteConfigAs("./config_generated_from_viper.yml")
 }
 
-// RootDir returns the root directory of the project
-func RootDir() string {
-	_, b, _, _ := runtime.Caller(0)
-	d := path.Join(path.Dir(b))
-	return filepath.Dir(d)
-}

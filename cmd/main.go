@@ -44,7 +44,7 @@ func newMainCmd(mainArgs *mainCmdArgs) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use: "chc",
 		Long: `CHC - Cluster Health Check
-s
+
 Provides HTTP status (200 OK|5xx Failed) of a k8s cluster based on the
 percentage of healthy services (--status-threshold) in the monitored
 namespaces (--namespaces).  
