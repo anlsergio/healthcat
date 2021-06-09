@@ -30,7 +30,7 @@ func LoadConfig(cmd *cobra.Command, filePath string, fileName string) error {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			return err
 		}
-		fmt.Fprintf(os.Stdout, "[WARNING] couldn't load system parameters from the provided file %s. Falling back to the default parameters respecting the order of precedence instead.\n", fileName)
+		fmt.Fprintf(os.Stderr, "[WARNING] couldn't load system parameters from the provided file %s. Falling back to the default parameters respecting the order of precedence instead.\n", fileName)
 	} else {
 		fmt.Fprintf(os.Stdout, "[INFO] configuration file found. Loading system parameters from file %s\n", fileName)
 	}
