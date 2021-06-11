@@ -4,7 +4,7 @@ VERSION_VAR := $(MODULE_NAME)/version.Version
 GIT_VAR := $(MODULE_NAME)/version.GitCommit
 BUILD_DATE_VAR := $(MODULE_NAME)/version.BuildDate
 REPO_VERSION := $$(git describe --abbrev=0 --tags)
-BUILD_DATE := $$(date +%Y-%m-%d-%H:%M)
+BUILD_DATE := $$(date -u +%Y-%m-%d-%H:%M)
 GIT_HASH := $$(git rev-parse --short HEAD)
 GOBUILD_VERSION_ARGS := -ldflags "-X $(VERSION_VAR)=$(REPO_VERSION) -X $(GIT_VAR)=$(GIT_HASH) -X $(BUILD_DATE_VAR)=$(BUILD_DATE)"
 # useful for other docker repos
