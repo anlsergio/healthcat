@@ -336,8 +336,7 @@ func TestLoadConfigPrecedenceOrder(t *testing.T) {
 	}
 	defer os.Chdir(currentDir)
 
-	err = os.Chdir(tmpDir)
-	if err != nil {
+	if err := os.Chdir(tmpDir); err != nil {
 		t.Errorf("couldn't change to the temporary test directory: %v", err)
 	}
 
