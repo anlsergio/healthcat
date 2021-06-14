@@ -19,7 +19,12 @@ const (
 func LoadConfig(cmd *cobra.Command, filePath string, fileName string) error {
 	v := viper.New()
 
-	v.SetConfigName(strings.Split(fileName, ".")[0])
+	configName := fileName
+	if i := strings.LastIndex(fileName, "."); i >= 0 {
+		configName = fileName[:i]
+	}
+
+	v.SetConfigName(configName)
 	v.SetConfigType(configFileType)
 	v.AddConfigPath(filePath)
 
