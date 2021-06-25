@@ -31,6 +31,9 @@ func LoadConfig(cmd *cobra.Command, filePath string, fileName string) error {
 	v.AutomaticEnv()
 	v.SetEnvPrefix(configEnvPrefix)
 
+	replacer := strings.NewReplacer("-", "_")
+	v.SetEnvKeyReplacer(replacer)
+
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			return err
@@ -47,16 +50,9 @@ func LoadConfig(cmd *cobra.Command, filePath string, fileName string) error {
 
 func bindFlags(cmd *cobra.Command, v *viper.Viper) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
-		if strings.Contains(f.Name, "-") {
-			envVarSuffix := strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))
-			v.BindEnv(f.Name, fmt.Sprintf("%s_%s", configEnvPrefix, envVarSuffix))
-		}
-
 		if !f.Changed && v.IsSet(f.Name) {
 			val := v.Get(f.Name)
 			cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
 		}
 	})
-	// v.WriteConfigAs("./config_generated_from_viper.yml")
 }
-
