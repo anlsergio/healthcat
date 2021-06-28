@@ -81,7 +81,7 @@ This application expects to receive system parameters in basically 3 ways, respe
 
 ### Configuration file observations
 
-**Using a custom file:** 
+**Using a custom file:**
 
 The config file must be in `YAML` format, and can be located anywhere in the filesystem, as long as the file location is provided through the `--config` flag.
 
