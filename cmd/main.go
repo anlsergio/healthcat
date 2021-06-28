@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,14 +15,15 @@ import (
 )
 
 const (
-	defaultAddress   = "*"
-	defaultExcludes  = "kube-system,default,kube-public,istio-system,monitoring"
-	defaultThreshold = 100
-	defaultNSuccess  = 1
-	defaultNFailure  = 2
-	defaultInterval  = "1m"
-	defaultPort      = 8080
-	defaultLogPreset = "dev"
+	defaultAddress    = "*"
+	defaultExcludes   = "kube-system,default,kube-public,istio-system,monitoring"
+	defaultThreshold  = 100
+	defaultNSuccess   = 1
+	defaultNFailure   = 2
+	defaultInterval   = "1m"
+	defaultPort       = 8080
+	defaultLogPreset  = "dev"
+	defaultConfigFile = "./config/config.yml"
 )
 
 type mainCmdArgs struct {
@@ -34,10 +37,11 @@ type mainCmdArgs struct {
 	threshold          int
 	port               int
 	logPreset          string
+	configFile         string
 }
 
-func newMainCmd(args *mainCmdArgs) *cobra.Command {
-	cmd := &cobra.Command{
+func newMainCmd(mainArgs *mainCmdArgs) *cobra.Command {
+	rootCmd := &cobra.Command{
 		Use: "chc",
 		Long: `CHC - Cluster Health Check
 
@@ -57,27 +61,41 @@ it passes predefined number of successful health-checks
 will not be monitored by CHC.  Cluster ID (--cluster-id) is a unique
 cluster identifier that will be included in all CHC reports.`,
 		Args: cobra.NoArgs,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if mainArgs.configFile != "" {
+				abs, err := filepath.Abs(mainArgs.configFile)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "could not get the valid path to the file: %v", err)
+				}
+				fileName := filepath.Base(abs)
+				fileLocation := filepath.Dir(abs)
+
+				return LoadConfig(cmd, fileLocation, fileName)
+			}
+			return nil
+		},
 		RunE: func(*cobra.Command, []string) error {
-			return runServer(args)
+			return runServer(mainArgs)
 		},
 	}
 
-	flags := cmd.Flags()
-	flags.StringVarP(&args.clusterID, "cluster-id", "i", "", "cluster ID")
-	flags.StringVarP(&args.host, "listen-address", "l", defaultAddress, "bind address")
-	flags.IntVarP(&args.port, "port", "p", defaultPort, "bind port")
-	flags.StringSliceVarP(&args.namespaces, "namespaces", "n", []string{}, "list of namespaces to watch")
-	flags.StringSliceVarP(&args.excludedNamespaces, "excluded-namespaces", "N", strings.Split(defaultExcludes, ","),
+	flags := rootCmd.Flags()
+	flags.StringVarP(&mainArgs.clusterID, "cluster-id", "i", "", "cluster ID")
+	flags.StringVarP(&mainArgs.host, "listen-address", "l", defaultAddress, "bind address")
+	flags.IntVarP(&mainArgs.port, "port", "p", defaultPort, "bind port")
+	flags.StringSliceVarP(&mainArgs.namespaces, "namespaces", "n", []string{}, "list of namespaces to watch")
+	flags.StringSliceVarP(&mainArgs.excludedNamespaces, "excluded-namespaces", "N", strings.Split(defaultExcludes, ","),
 		"list of namespaces to exclude")
-	flags.DurationVarP(&args.interval, "time-between-hc", "t", duration(defaultInterval), "time between two consecutive health checks")
-	flags.IntVarP(&args.nsuccess, "successful-hc-cnt", "s", defaultNSuccess, "number of successful consecutive health checks counts")
-	flags.IntVarP(&args.nfailure, "failed-hc-cnt", "f", defaultNFailure, "number of failed consecutive health checks counts")
-	flags.IntVarP(&args.threshold, "status-threshold", "P", defaultThreshold, "percentage of successful health checks to set cluster status OK")
-	flags.StringVar(&args.logPreset, "log-preset", defaultLogPreset, "Log preset config (dev|prod)")
+	flags.DurationVarP(&mainArgs.interval, "time-between-hc", "t", duration(defaultInterval), "time between two consecutive health checks")
+	flags.IntVarP(&mainArgs.nsuccess, "successful-hc-cnt", "s", defaultNSuccess, "number of successful consecutive health checks counts")
+	flags.IntVarP(&mainArgs.nfailure, "failed-hc-cnt", "F", defaultNFailure, "number of failed consecutive health checks counts")
+	flags.IntVarP(&mainArgs.threshold, "status-threshold", "P", defaultThreshold, "percentage of successful health checks to set cluster status OK")
+	flags.StringVar(&mainArgs.logPreset, "log-preset", defaultLogPreset, "Log preset config (dev|prod)")
+	flags.StringVarP(&mainArgs.configFile, "config", "f", defaultConfigFile, "/path/to/config.yml")
 
-	cmd.MarkFlagRequired("cluster-id")
+	rootCmd.MarkFlagRequired("cluster-id")
 
-	return cmd
+	return rootCmd
 }
 
 // Execute executes the root command

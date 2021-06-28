@@ -19,50 +19,104 @@ func TestFlags(t *testing.T) {
 		defaultVal interface{}
 	}{
 		{
-			[]string{"-i", "--cluster-id"}, "zzz", true,
-			"zzz",
-			func() interface{} { return cmdArgs.clusterID }, "",
+			names:    []string{"-i", "--cluster-id"},
+			arg:      "zzz",
+			required: true,
+			want:     "zzz",
+			value: func() interface{} {
+				return cmdArgs.clusterID
+			},
+			defaultVal: "",
 		},
 		{
-			[]string{"-N", "--excluded-namespaces"}, "e-n-1,e-n-2", false,
-			[]string{"e-n-1", "e-n-2"},
-			func() interface{} { return cmdArgs.excludedNamespaces },
-			[]string{"kube-system", "default", "kube-public", "istio-system", "monitoring"},
+			names:    []string{"-N", "--excluded-namespaces"},
+			arg:      "e-n-1,e-n-2",
+			required: false,
+			want:     []string{"e-n-1", "e-n-2"},
+			value: func() interface{} {
+				return cmdArgs.excludedNamespaces
+			},
+			defaultVal: []string{"kube-system", "default", "kube-public", "istio-system", "monitoring"},
 		},
 		{
-			[]string{"-f", "--failed-hc-cnt"}, "7", false,
-			7,
-			func() interface{} { return cmdArgs.nfailure }, 2,
+			names:    []string{"-F", "--failed-hc-cnt"},
+			arg:      "7",
+			required: false,
+			want:     7,
+			value: func() interface{} {
+				return cmdArgs.nfailure
+			},
+			defaultVal: 2,
 		},
 		{
-			[]string{"-t", "--time-between-hc"}, "2m30s", false,
-			duration("2m30s"),
-			func() interface{} { return cmdArgs.interval }, duration("1m"),
+			names:    []string{"-t", "--time-between-hc"},
+			arg:      "2m30s",
+			required: false,
+			want:     duration("2m30s"),
+			value: func() interface{} {
+				return cmdArgs.interval
+			},
+			defaultVal: duration("1m"),
 		},
 		{
-			[]string{"-l", "--listen-address"}, "hostname", false,
-			"hostname",
-			func() interface{} { return cmdArgs.host }, "*",
+			names:    []string{"-l", "--listen-address"},
+			arg:      "hostname",
+			required: false,
+			want:     "hostname",
+			value: func() interface{} {
+				return cmdArgs.host
+			},
+			defaultVal: "*",
 		},
 		{
-			[]string{"-p", "--port"}, "8585", false,
-			8585,
-			func() interface{} { return cmdArgs.port }, 8080,
+			names:    []string{"-p", "--port"},
+			arg:      "8585",
+			required: false,
+			want:     8585,
+			value: func() interface{} {
+				return cmdArgs.port
+			},
+			defaultVal: 8080,
 		},
 		{
-			[]string{"-n", "--namespaces"}, "n-1,n-2,n-3", false,
-			[]string{"n-1", "n-2", "n-3"},
-			func() interface{} { return cmdArgs.namespaces }, []string{},
+			names:    []string{"-n", "--namespaces"},
+			arg:      "n-1,n-2,n-3",
+			required: false,
+			want:     []string{"n-1", "n-2", "n-3"},
+			value: func() interface{} {
+				return cmdArgs.namespaces
+			},
+			defaultVal: []string{},
 		},
 		{
-			[]string{"-s", "--successful-hc-cnt"}, "25", false,
-			25,
-			func() interface{} { return cmdArgs.nsuccess }, 1,
+			names:    []string{"-s", "--successful-hc-cnt"},
+			arg:      "25",
+			required: false,
+			want:     25,
+			value: func() interface{} {
+				return cmdArgs.nsuccess
+			},
+			defaultVal: 1,
 		},
 		{
-			[]string{"-P", "--status-threshold"}, "77", false,
-			77,
-			func() interface{} { return cmdArgs.threshold }, 100,
+			names:    []string{"-P", "--status-threshold"},
+			arg:      "77",
+			required: false,
+			want:     77,
+			value: func() interface{} {
+				return cmdArgs.threshold
+			},
+			defaultVal: 100,
+		},
+		{
+			names:    []string{"-f", "--config"},
+			arg:      "../config/config.yml",
+			required: false,
+			want:     "../config/config.yml",
+			value: func() interface{} {
+				return cmdArgs.configFile
+			},
+			defaultVal: "./config/config.yml",
 		},
 	}
 

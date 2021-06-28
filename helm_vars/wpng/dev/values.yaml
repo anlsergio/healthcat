@@ -11,9 +11,15 @@ image:
 
 args:
   - cluster-id=wpngdev
-  - port=80
   - namespaces=nginx
   - log-preset=prod
+
+# set environment variables to the deployment pods:
+env: []
+  # - name: HEALTHCAT_NAMESPACES
+  #   value: "nginx"
+  # - name: HEALTHCAT_LOG_PRESET
+  #   value: "prod"
 
 imagePullSecrets: []
 nameOverride: ""

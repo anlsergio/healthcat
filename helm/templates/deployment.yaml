@@ -13,6 +13,8 @@ spec:
     metadata:
       labels:
         {{- include "helm.selectorLabels" . | nindent 8 }}
+      annotations:
+        configchecksum: {{ include (print .Template.BasePath "/configmap.yaml") . | sha256sum | trunc 63 }}
     spec:
     {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -31,6 +33,10 @@ spec:
             {{- range .Values.args }}
             - --{{ . }}
             {{- end }}
+          {{- if .Values.env }}
+          env:
+            {{- toYaml .Values.env | nindent 12 }}
+          {{- end }}
           ports:
             - name: http
               containerPort: 80
@@ -45,6 +51,10 @@ spec:
               port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: "/config/config.yml"
+              subPath: "config.yml"
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -57,3 +67,11 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
     {{- end }}
+
+      volumes:
+        - name: config
+          configMap:
+            name: {{ template "helm.fullname" . }}-config
+            items:
+              - key: "config.yml"
+                path: "config.yml"

@@ -34,16 +34,7 @@ docker:
 	@echo "DOCKER_BUILD_FLAGS=$(DOCKER_BUILD_FLAGS)"
 	docker build -t $(IMAGE_NAME):$(GIT_HASH) $(DOCKER_BUILD_FLAGS) .
 
-docker-dev: docker
-	docker tag $(IMAGE_NAME):$(GIT_HASH) $(IMAGE_NAME):dev
-	docker push $(IMAGE_NAME):dev
-
-# ensure:
-#	 1. kind cluster is up and running
-#  2. chc namespace exists
-docker-kind: docker
-	kind load docker-image $(IMAGE_NAME):$(GIT_HASH) --name nginx
-
+deploy:
 	helm upgrade \
 	chc helm/ \
 	--install \
@@ -51,6 +42,25 @@ docker-kind: docker
 	-f helm_vars/wpng/dev/values.yaml \
 	--set image.tag=$(GIT_HASH) \
 	--debug
+
+docker-dev: docker
+	docker tag $(IMAGE_NAME):$(GIT_HASH) $(IMAGE_NAME):dev
+	docker push $(IMAGE_NAME):dev
+
+# ensure:
+#  1. kind cluster is up and running
+#  2. chc namespace exists
+docker-kind: docker
+	kind load docker-image $(IMAGE_NAME):$(GIT_HASH) --name nginx
+	make deploy
+
+# ensure:
+#  1. Minikube cluster is up and running
+#  2. chc namespace exists
+#  3. your `~/.kube/config` file and context are set to use Minikube
+docker-minikube: docker
+	minikube image load $(IMAGE_NAME):$(GIT_HASH)
+	make deploy
 
 release: check test docker
 	docker push $(IMAGE_NAME):$(GIT_HASH)
