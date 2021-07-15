@@ -11,6 +11,11 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+const (
+	schemaAnnotation = "chc/schema"
+	pathAnnotation   = "chc/path"
+)
+
 // ServiceRegistry is TODO
 //
 type ServiceRegistry interface {
@@ -74,12 +79,12 @@ func (e *EventSource) Run() {
 }
 
 func getServiceAttributes(svc *v1.Service) (name, url string) {
-	schema := svc.ObjectMeta.Annotations["chc/schema"]
+	schema := svc.Annotations[schemaAnnotation]
 	if schema == "" {
 		schema = "http"
 	}
 
-	path := svc.ObjectMeta.Annotations["chc/path"]
+	path := svc.Annotations[pathAnnotation]
 	if path == "" {
 		path = "/healthz"
 	}
