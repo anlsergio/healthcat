@@ -43,7 +43,7 @@ metadata:
   name: nginx-${PODNUM}
   labels:
     app: nginx-${PODNUM}
-    group: nginx-chc
+    group: nginx-healthcat
     health: $IS_HEALTH
 spec:
   containers:

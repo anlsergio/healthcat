@@ -1,6 +1,5 @@
-# do-k8s-cluster-health-check
-Provides status on k8s cluster health
-https://confluence.wiley.com/display/DEVOPS/Kubernetes+Cluster+Health+Check
+# healthcat
+Provides status on k8s cluster health by checking the health status of group of applications deployed in the cluster.
 
 ## Building and testing
 
@@ -14,7 +13,7 @@ in the project root directory.
 
 To build the project, run
 ```sh
-go build -o chc
+go build -o healthcat
 ```
 in the project root directory.
 
@@ -31,18 +30,18 @@ Build the image first
 1) With traditional docker build engine
 ```
 docker build \
--t 681504496077.dkr.ecr.us-east-1.amazonaws.com/chc:${APP_VERSION} .
+-t 112233445566.dkr.ecr.us-east-1.amazonaws.com/healthcat:${APP_VERSION} .
 ```
 
 2) Or with [buildkit](https://github.com/moby/buildkit) to build OCI images
 ```
-docker buildx build \
--t 681504496077.dkr.ecr.us-east-1.amazonaws.com/chc:${APP_VERSION} .
+docker build \
+-t 112233445566.dkr.ecr.us-east-1.amazonaws.com/healthcat:${APP_VERSION} .
 ```
 
 Push Docker image to ECR
 ```
-docker push 681504496077.dkr.ecr.us-east-1.amazonaws.com/chc:${APP_VERSION}
+docker push 681504496077.dkr.ecr.us-east-1.amazonaws.com/healthcat:${APP_VERSION}
 ```
 
 ## Deploy to Kubernetes
@@ -50,17 +49,17 @@ docker push 681504496077.dkr.ecr.us-east-1.amazonaws.com/chc:${APP_VERSION}
 Assumptions:
 1. Use [helm v3](https://helm.sh/docs/intro/install/)
 2. Docker image is available in ECR
-3. Make sure `chc` namespace exists in k8s. You need RBAC privileges
+3. Make sure `healthcat` namespace exists in k8s. You need RBAC privileges
    to create it.
-   `kubectl create ns chc`
+   `kubectl create ns healthcat`
 
 Upgrade `chc` release; Install the release if missing.
 ```bash
 helm upgrade \
-   chc helm/ \
+   healthcat helm/ \
    --install \
-   --namespace chc \
-   -f helm_vars/wpng/dev/values.yaml \
+   --namespace healthcat \
+   -f helm_vars/dev/values.yaml \
    --debug --dry-run
 ```
 > Remove the `--dry-run` flag before flight!
@@ -124,4 +123,4 @@ Refer to the following table in order to get to know all the parameters that can
 
 <br />
 
-[Back to the top](#do-k8s-cluster-health-check)
+[Back to the top](#healthcat)

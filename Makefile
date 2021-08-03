@@ -1,5 +1,5 @@
 MODULE_NAME := $$(awk '/module/ { print $$2; }' go.mod)
-BINARY_NAME := chc
+BINARY_NAME := healthcat
 VERSION_VAR := $(MODULE_NAME)/version.Version
 GIT_VAR := $(MODULE_NAME)/version.GitCommit
 BUILD_DATE_VAR := $(MODULE_NAME)/version.BuildDate
@@ -8,7 +8,7 @@ BUILD_DATE := $$(date +%Y-%m-%d-%H:%M)
 GIT_HASH := $$(git rev-parse --short HEAD)
 GOBUILD_VERSION_ARGS := -ldflags "-X $(VERSION_VAR)=$(REPO_VERSION) -X $(GIT_VAR)=$(GIT_HASH) -X $(BUILD_DATE_VAR)=$(BUILD_DATE)"
 # useful for other docker repos
-DOCKER_REPO ?= 681504496077.dkr.ecr.us-east-1.amazonaws.com
+DOCKER_REPO ?= 112233445566.dkr.ecr.us-east-1.amazonaws.com
 IMAGE_NAME := $(DOCKER_REPO)/$(BINARY_NAME)
 ARCH ?= darwin
 GOLANGCI_LINT_VERSION ?= v1.23.8
@@ -36,10 +36,10 @@ docker:
 
 deploy:
 	helm upgrade \
-	chc helm/ \
+	healthcat helm/ \
 	--install \
-	--namespace=chc \
-	-f helm_vars/wpng/dev/values.yaml \
+	--namespace=healthcat \
+	-f helm_vars/dev/values.yaml \
 	--set image.tag=$(GIT_HASH) \
 	--debug
 
@@ -84,7 +84,7 @@ bench-race:
 	go test -race -bench=. ./...
 
 clean:
-	rm -fr bin/*
+	rm -fr bin/* build/*
 
 fmt:
 	go fmt ./...

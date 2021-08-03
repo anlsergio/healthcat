@@ -12,9 +12,9 @@ import (
 
 	"github.com/go-chi/chi"
 	"go.uber.org/zap"
-	"wiley.com/do-k8s-cluster-health-check/checker"
-	chczap "wiley.com/do-k8s-cluster-health-check/logger"
-	"wiley.com/do-k8s-cluster-health-check/version"
+	"wiley.com/healthcat/checker"
+	chczap "wiley.com/healthcat/logger"
+	"wiley.com/healthcat/version"
 )
 
 // Server properties

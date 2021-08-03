@@ -1,4 +1,4 @@
-# Testing CHC
+# Testing Healthcat
 
 ## Test Summary
 `buildpods.sh` creates POD_TOTAL number of Pods and Services. Most of the Pods will have `/healthz` nginx configuration while some small number of Pods will be deployed withour the `/healthz` endpoint.
@@ -89,7 +89,7 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 
 Create the necessary namespaces for CHC and Nginx tests pods:
 ```bash
-kubectl create ns chc \
+kubectl create ns healthcat \
   && kubectl create ns nginx
 ```
 
@@ -105,7 +105,7 @@ kubectl -n nginx apply -f configmap.yaml
 
 ### Deploy CHC
 
-From the root directory of the `do-k8s-cluster-health-check` (`../../`) from the current context) project, build and deploy using the make command:
+From the root directory of the `healthcat` (`../../`) from the current context) project, build and deploy using the make command:
 ```bash
 make docker-kind
 ```
@@ -213,7 +213,7 @@ No resources found in nginx namespace.
 Start the port proxy tunnel to expose the CHC endpoint as a localhost:
 ```bash
 kubectl -n chc \
-  port-forward $(kubectl get pods -n chc -l app=chc -o=jsonpath='{.items[0].metadata.name}') 8080:80
+  port-forward $(kubectl get pods -n healthcat -l app=healthcat -o=jsonpath='{.items[0].metadata.name}') 8080:80
 ```
 
 <br />
@@ -229,7 +229,7 @@ The output should look similar to this:
 ```json
 {
    "cluster": {
-     "name": "wpngdev",
+     "name": "dev",
      "healthy": true,
      "total": 10,
      "failed": 0
@@ -293,4 +293,4 @@ curl http://localhost:8080/status
 kind delete cluster --name nginx
 ```
 
-[Back to the top](#testing-chc)
+[Back to the top](#testing-healthcat)

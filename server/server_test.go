@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"go.uber.org/zap"
-	"wiley.com/do-k8s-cluster-health-check/checker"
+	"wiley.com/healthcat/checker"
 )
 
 type testReporter struct {

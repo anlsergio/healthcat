@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"wiley.com/do-k8s-cluster-health-check/cmd"
+	"wiley.com/healthcat/cmd"
 )
 
 func main() {

@@ -9,9 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-	"wiley.com/do-k8s-cluster-health-check/checker"
-	"wiley.com/do-k8s-cluster-health-check/k8s"
-	"wiley.com/do-k8s-cluster-health-check/server"
+	"wiley.com/healthcat/checker"
+	"wiley.com/healthcat/k8s"
+	"wiley.com/healthcat/server"
 )
 
 const (
@@ -42,8 +42,8 @@ type mainCmdArgs struct {
 
 func newMainCmd(mainArgs *mainCmdArgs) *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use: "chc",
-		Long: `CHC - Cluster Health Check
+		Use: "healthcat",
+		Long: `Healthcat - K8S Cluster Health Check
 
 Provides HTTP status (200 OK|5xx Failed) of a k8s cluster based on the
 percentage of healthy services (--status-threshold) in the monitored
@@ -51,15 +51,15 @@ namespaces (--namespaces).
 
 To be included in the health status of the cluster, a healthy service
 must provide API /healthz that returns HTTP 200 OK and use
-“chc.wiley.com/healthz: enable” annotation.  CHC will scan regularly
+“healthcat.wiley.com/healthz: enable” annotation. Healthcat will scan regularly
 included services (--time-between-hc).
 
 A service will be in a failed state if it fails predefined number of
 consecutive health-checks (--failed-hc-cnt), and in healthy state if
 it passes predefined number of successful health-checks
 (--successful-hc-cnt).  Excluded namespaces (--excluded-namespaces)
-will not be monitored by CHC.  Cluster ID (--cluster-id) is a unique
-cluster identifier that will be included in all CHC reports.`,
+will not be monitored by healthcat.  Cluster ID (--cluster-id) is a unique
+cluster identifier that will be included in all healthcat reports.`,
 		Args: cobra.NoArgs,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if mainArgs.configFile != "" {

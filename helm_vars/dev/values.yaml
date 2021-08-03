@@ -5,12 +5,12 @@
 replicaCount: 1
 
 image:
-  repository: 681504496077.dkr.ecr.us-east-1.amazonaws.com/chc
+  repository: 112233445566.dkr.ecr.us-east-1.amazonaws.com/healthcat
   pullPolicy: IfNotPresent
   tag:
 
 args:
-  - cluster-id=wpngdev
+  - cluster-id=dev
   - namespaces=nginx
   - log-preset=prod
 
@@ -52,18 +52,19 @@ service:
 ingress:
   enabled: false
 
+# assuming istio is enabled and cert-manager provisions wildcard letsencrypt certs 
+# for *.dev.example.com domain
 istio:
   gateway:
     enabled: false
     ingress:
       hosts:
-        - host: chc.dev.edpub.wiley.com
+        - host: healthcat.dev.example.com
       tls:
-        credentialName: wildcard-dev-edpub-wiley-com-crt-secret
+        credentialName: wildcard-dev-example-com-crt-secret
     mesh:
       hosts:
-        - host: chc.dev.edpub.wiley.com
-        - host: chc.svc.cluster.local
+        - host: healthcat.dev.example.com
 
 resources:
   # We usually recommend not to specify default resources and to leave this as a conscious
